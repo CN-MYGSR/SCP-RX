@@ -1,0 +1,14 @@
+# 构建产物（由 build.mjs 生成）
+dist/
+
+# 测试截图（_tools/shot.js 生成，体积大且可随时重建）
+_tools/shots/
+
+# 本地助手工作目录
+.workbuddy-ai/
+
+# 依赖与缓存
+node_modules/
+*.log
+.DS_Store
+Thumbs.db

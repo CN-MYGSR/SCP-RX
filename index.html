@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<link rel="icon" href="data:,">
+<title>SCP：RX · 收容失效</title>
+<!-- 资源加载失败兜底 -->
+<script>
+(function(){
+  var shown=false;
+  function isCritical(u){ if(!u) return false; return u.indexOf('/js/')>=0||u.indexOf('/css/')>=0||u.indexOf('js/')===0||u.indexOf('css/')===0; }
+  function show(reason){
+    if(shown) return; shown=true;
+    var mk=function(){
+      if(document.getElementById('loadFailOv')) return;
+      var d=document.createElement('div'); d.id='loadFailOv';
+      d.style.cssText='position:fixed;inset:0;z-index:99999;background:#08090b;color:#e8e8e8;display:flex;align-items:center;justify-content:center;font:14px/1.7 Consolas,monospace';
+      d.innerHTML='<div style="max-width:560px;padding:28px 32px;text-align:center">'
+        +'<div style="font-size:20px;letter-spacing:4px;margin-bottom:14px;color:#e0b64a">资 源 加 载 失 败</div>'
+        +'<div style="color:#b8b8b8;margin-bottom:8px">有文件没有下载成功，稍等几秒重试通常就好。</div>'
+        +'<div style="color:#8f8f8f;font-size:12px;margin-bottom:20px;word-break:break-all">'+String(reason||'').replace(/[<>&]/g,'')+'</div>'
+        +'<button id="loadFailBtn" style="padding:10px 26px;border-radius:4px;cursor:pointer;background:#1d2126;color:#f0f0f0;border:1px solid #8f8f8f;font-size:14px;letter-spacing:2px">重 新 加 载</button></div>';
+      document.body.appendChild(d);
+      d.querySelector('#loadFailBtn').onclick=function(){ location.reload(); };
+    };
+    if(document.body) mk(); else addEventListener('DOMContentLoaded',mk);
+  }
+  addEventListener('error',function(e){
+    var t=e.target;
+    if(!t||t===window||!t.tagName) return;
+    if(t.tagName!=='SCRIPT'&&t.tagName!=='LINK') return;
+    var u=t.src||t.href||'';
+    if(isCritical(u)) show('未能加载: '+u);
+  },true);
+})();
+</script>
+<link rel="stylesheet" href="css/style.css?v=1">
+</head>
+<body>
+
+<!-- ================= 游戏内 HUD ================= -->
+<div id="ui">
+  <!-- 准星 -->
+  <div id="crosshair">
+    <span class="ch t"></span><span class="ch b"></span><span class="ch l"></span><span class="ch r"></span><span class="chdot"></span>
+  </div>
+  <div id="hitmark"><span></span><span></span><span></span><span></span></div>
+
+  <!-- 全屏滤镜层 -->
+  <div id="dmgOv"></div>
+  <div id="vig"></div>
+  <div id="nvgOv" class="nvgOv"></div>
+  <div id="flashOv"></div>
+  <div id="scanlines"></div>
+
+  <!-- 左下：生命体征 -->
+  <div id="vitals">
+    <div class="vRow"><span class="vLabel">HP</span><div class="vBarWrap"><div id="hpBar" class="vBar hp"></div></div><span id="hpTxt" class="vNum">100</span></div>
+    <div class="vRow"><span class="vLabel">ARM</span><div class="vBarWrap"><div id="armorBar" class="vBar arm"></div></div><span id="armorTxt" class="vNum">0</span></div>
+    <div class="vRow"><span class="vLabel">REST</span><div class="vBarWrap"><div id="sleepBar" class="vBar sleep"></div></div><span id="sleepTxt" class="vNum">100</span></div>
+    <div class="vRow"><span class="vLabel" id="gearLabel">NVG</span><div class="vBarWrap"><div id="nvgBar" class="vBar nvg"></div></div><span id="nvgTxt" class="vNum">100</span></div>
+  </div>
+
+  <!-- 右下：弹药 -->
+  <div id="ammoPanel">
+    <div id="wName">HK-416</div>
+    <div id="wMode">全自动 · 5.56×45mm</div>
+    <div id="ammoRow"><span id="magN">30</span><span id="resN">/ 240</span></div>
+    <div id="modRow"></div>
+    <div id="slotRow"><span id="slot1" class="slotInd sel">1 主武器</span><span id="slot2" class="slotInd">2 副武器</span></div>
+  </div>
+
+  <!-- 顶部：任务 + 威胁 -->
+  <div id="topBar">
+    <div id="missionBar"><span id="missionName">落锤行动</span><span id="missionTime">00:00</span></div>
+    <div id="compassWrap"><canvas id="compass" width="640" height="30"></canvas></div>
+    <div id="threatBar">
+      <span class="thLabel">收容进度</span>
+      <span id="threatCount">0 / 9</span>
+      <span id="alarmLamp" class="lamp">静默</span>
+    </div>
+  </div>
+
+  <!-- 任务目标（左上） -->
+  <div id="objHud">
+    <div class="objTitle">▎ 行动目标</div>
+    <div id="objList"></div>
+  </div>
+
+  <!-- 威胁雷达（右上） -->
+  <div id="radarWrap">
+    <canvas id="radar" width="180" height="180"></canvas>
+    <div class="radarLabel">SCP 追踪 · 20m</div>
+  </div>
+
+  <!-- 交互提示 -->
+  <div id="interact">
+    <div id="interactTxt"></div>
+    <div id="interactBarWrap"><div id="interactBar"></div></div>
+  </div>
+
+  <!-- 字幕 / 广播 / 提示 -->
+  <div id="subtitle"></div>
+  <div id="broadcast"></div>
+  <div id="toastBox"></div>
+  <div id="killfeed"></div>
+  <div id="floatLayer"></div>
+  <div id="dirHits"></div>
+  <div id="fps"></div>
+  <div id="grabWarn" class="hidden">被抓住了 —— 连按 [空格] 挣脱</div>
+  <div id="scramInd" class="hidden">◈ SCRAMBLE 面部干扰中 · SCP-096 无法识别你</div>
+</div>
+
+<!-- 大地图 / 目标详情 -->
+<div id="bigMap" class="overlayPanel hidden">
+  <div class="bmHead">设 施 平 面 图 · SITE-19</div>
+  <canvas id="bmCanvas" width="720" height="820"></canvas>
+  <div class="bmLegend">
+    <span><i class="lg me"></i>你</span>
+    <span><i class="lg ally"></i>MTF</span>
+    <span><i class="lg scp"></i>SCP</span>
+    <span><i class="lg obj"></i>目标</span>
+    <span><i class="lg lz"></i>入口区</span>
+    <span><i class="lg lc"></i>轻收容</span>
+    <span><i class="lg lh"></i>重收容</span>
+  </div>
+  <div class="bmHint">[M] 关闭</div>
+</div>
+
+<!-- 目标 / 图鉴面板 -->
+<div id="objPanel" class="overlayPanel hidden">
+  <div class="opHead">行 动 简 报 · 威 胁 图 鉴</div>
+  <div id="opBody"></div>
+  <div class="bmHint">[Tab] 关闭</div>
+</div>
+
+<!-- 暂停 -->
+<div id="pauseOverlay" class="screen hidden">
+  <div class="panel narrow">
+    <h2 class="mSubTitle">已 暂 停</h2>
+    <div class="pauseStats" id="pauseStats"></div>
+    <div class="btnCol">
+      <button class="bigBtn" id="pResume">返 回 战 斗</button>
+      <button class="bigBtn" id="pSettings">设 置</button>
+      <button class="bigBtn" id="pAbort">放 弃 行 动</button>
+    </div>
+  </div>
+</div>
+
+<!-- 结算 -->
+<div id="endScreen" class="screen hidden">
+  <div class="panel">
+    <div id="endTitle">行 动 成 功</div>
+    <div id="endSub"></div>
+    <div id="endStats"></div>
+    <div class="btnCol row">
+      <button class="bigBtn" id="endRetry">重 新 部 署</button>
+      <button class="bigBtn" id="endMenu">返 回 主 菜 单</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 主菜单 ================= -->
+<div id="menuScreen" class="screen">
+  <div class="menuBg"></div>
+  <div class="panel menuMain">
+    <div id="mHome">
+      <div class="logoLine">SCP</div>
+      <div class="logoBig">：RX</div>
+      <div class="logoSub">收 容 失 效 · CONTAINMENT BREACH</div>
+      <div class="logoDivider"></div>
+      <div class="logoDesc">
+        Site-19 地下设施主变压器跳闸，9 只收容物全部脱离。<br>
+        你是 MTF <b>Nu-7「落锤」</b> 的一名操作员。收容协议已上传，但需要有人进去把它跑完。
+      </div>
+      <div class="menuNav">
+        <button class="bigBtn navBtn" data-p="mLoadout">开 始 行 动</button>
+        <button class="bigBtn navBtn" data-p="mBrief">行 动 简 报</button>
+        <button class="bigBtn navBtn" data-p="mCodex">威 胁 图 鉴</button>
+        <button class="bigBtn navBtn" data-p="mSet">设 置 与 操 作</button>
+      </div>
+      <div class="menuVer">SCP: RX · Site-19 · MTF Nu-7 "Hammer Down" · v1.0</div>
+    </div>
+
+    <!-- 简报 -->
+    <div id="mBrief" class="mSub hidden">
+      <h2 class="mSubTitle">行 动 简 报</h2>
+      <div class="briefBox" id="briefBox"></div>
+      <div class="center"><button class="bigBtn backBtn">返 回</button></div>
+    </div>
+
+    <!-- 图鉴 -->
+    <div id="mCodex" class="mSub hidden">
+      <h2 class="mSubTitle">威 胁 图 鉴</h2>
+      <div class="codexGrid" id="codexGrid"></div>
+      <div class="center"><button class="bigBtn backBtn">返 回</button></div>
+    </div>
+
+    <!-- 设置 -->
+    <div id="mSet" class="mSub hidden">
+      <h2 class="mSubTitle">设 置 与 操 作</h2>
+      <div class="setGrid">
+        <div class="setCol">
+          <div class="secLabel">画质</div>
+          <div class="rowFlex">
+            <button class="optBtn qualBtn" data-q="0">低</button>
+            <button class="optBtn qualBtn sel" data-q="1">中</button>
+            <button class="optBtn qualBtn" data-q="2">高</button>
+          </div>
+          <div id="perfHint" style="margin-top:5px;font-size:11px;color:#7e8891"></div>
+          <div class="sliderRow">鼠标灵敏度 <input type="range" id="sensRange" min="20" max="300" value="100"><span class="val" id="sensVal">1.00</span></div>
+          <div class="sliderRow">视野 FOV <input type="range" id="fovRange" min="60" max="110" value="76"><span class="val" id="fovVal">76</span></div>
+          <div class="sliderRow">音量 <input type="range" id="volRange" min="0" max="100" value="75"><span class="val" id="volVal">75</span></div>
+          <div class="sliderRow">视角抖动 <input type="range" id="shakeRange" min="0" max="200" value="100"><span class="val" id="shakeVal">100%</span></div>
+          <div class="sliderRow">自适应分辨率 <button class="optBtn" id="adaptiveBtn">开</button><span class="val" style="opacity:.65;font-size:11px;width:auto;text-align:left">帧率不足时自动降内部分辨率</span></div>
+          <div class="sliderRow">开镜方式 <button class="optBtn" id="adsBtn">按住瞄准</button></div>
+          <div class="secLabel">夜视 / 热成像配色</div>
+          <div class="rowFlex">
+            <button class="optBtn nvgBtn" data-n="green">绿</button>
+            <button class="optBtn nvgBtn" data-n="white">白</button>
+            <button class="optBtn nvgBtn" data-n="amber">琥珀</button>
+          </div>
+        </div>
+        <div class="setCol">
+          <div class="secLabel">操作</div>
+          <div id="ctrlHelp">
+            <div><b>W A S D</b> 移动 · <b>Shift</b> 疾跑 · <b>Ctrl / C</b> 蹲下 · <b>空格</b> 跳跃 / 挣脱</div>
+            <div><b>左键</b> 射击 · <b>右键</b> 开镜 · <b>R</b> 换弹 · <b>1 / 2</b> 切换武器</div>
+            <div><b>N</b> 头戴装置（夜视仪 / Project SCRAMBLE） · <b>G</b> 战术手电 / 激光</div>
+            <div><b>F</b> 长按交互（断路器 / 终端 / 撤离） · <b>H</b> 急救包</div>
+            <div><b>M</b> 设施平面图 · <b>Tab</b> 行动简报 · <b>Esc</b> 暂停</div>
+            <div class="warnLine">注意：SCP-173 只有在你<b>注视它</b>的时候才会冻结，也只有冻结时才能被子弹击伤。<br>
+            眨眼是不可避免的 —— 每次眨眼，它都会前进。</div>
+          </div>
+        </div>
+      </div>
+      <div class="center"><button class="bigBtn backBtn">返 回</button></div>
+    </div>
+
+    <!-- 配装 -->
+    <div id="mLoadout" class="mSub hidden">
+      <h2 class="mSubTitle">配 装 与 改 装</h2>
+      <div class="loadoutWrap">
+        <div class="loLeft">
+          <div class="secLabel">选择行动</div>
+          <div id="missionRow" class="presetRow" style="margin-bottom:8px"></div>
+          <div id="missionDesc" class="gearDesc" style="margin-bottom:6px"></div>
+          <div class="secLabel">选择初始配装</div>
+          <div id="presetRow" class="presetRow"></div>
+          <div class="secLabel">护甲等级</div>
+          <div id="armorRow" class="rowFlex"></div>
+          <div class="secLabel">视觉增强装置（头戴 · 与夜视仪同槽位 · 三选一）</div>
+          <div class="rowFlex" id="gearRow"></div>
+          <div id="gearDesc" class="gearDesc"></div>
+          <div class="secLabel">主武器数值</div>
+          <div id="statBox" class="statBox"></div>
+        </div>
+        <div class="loRight">
+          <div class="secLabel">改装工坊 · 主武器</div>
+          <div id="modTabs" class="modTabs"></div>
+          <div id="modList" class="modList"></div>
+          <div class="secLabel">改装工坊 · 副武器</div>
+          <div id="modTabs2" class="modTabs"></div>
+          <div id="modList2" class="modList"></div>
+        </div>
+      </div>
+      <div class="center">
+        <button class="bigBtn deployBtn" id="deployGo">部 署 落 锤</button>
+        <button class="bigBtn backBtn">返 回</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 加载 -->
+<div id="bootScreen" class="screen">
+  <div class="bootInner">
+    <div class="bootLogo">SCP：RX</div>
+    <div class="bootBarWrap"><div id="bootBar"></div></div>
+    <div id="bootTxt">正在初始化设施…</div>
+  </div>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="js/00_core.js?v=1"></script>
+<script src="js/01_data.js?v=1"></script>
+<script src="js/02_audio.js?v=1"></script>
+<script src="js/03_textures.js?v=1"></script>
+<script src="js/04_render.js?v=1"></script>
+<script src="js/05_collision.js?v=1"></script>
+<script src="js/06_facility.js?v=1"></script>
+<script src="js/06b_farm.js?v=1"></script>
+<script src="js/07_weapons.js?v=1"></script>
+<script src="js/08_viewmodel.js?v=1"></script>
+<script src="js/09_player.js?v=1"></script>
+<script src="js/10_scp.js?v=1"></script>
+<script src="js/11_fx.js?v=1"></script>
+<script src="js/12_ally.js?v=1"></script>
+<script src="js/13_hud.js?v=1"></script>
+<script src="js/14_menus.js?v=1"></script>
+<script src="js/15_main.js?v=1"></script>
+</body>
+</html>
