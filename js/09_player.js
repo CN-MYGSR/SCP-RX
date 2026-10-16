@@ -8,6 +8,21 @@ const EYE_STAND = 1.62, EYE_CROUCH = 1.06;
 // 射击用临时向量（每次开火都可能用到，不要在热路径里 new）
 const _pFwd = V3(), _pRight = V3(), _pUp = V3(), _pDir = V3();
 
+/* 当前角色实际生效的配装。
+   MTF 用玩家在配装界面自己选的；其他角色用固定配装，或者干脆空手。 */
+function effectiveLoadout() {
+  const r = (typeof currentRole === 'function') ? currentRole() : null;
+  if (!r || r.loadout === 'custom') return LOADOUT;
+  return {
+    preset: r.id,
+    primary: r.primary,
+    secondary: r.secondary,
+    mods: { primary: {}, secondary: {} },
+    armor: r.armor | 0,
+    gear: r.gear || 'none',
+  };
+}
+
 const player = {
   isPlayer: true, name: '你', callsign: 'Nu-7',
   pos: V3(0, 0, 0), vel: V3(),
@@ -15,6 +30,12 @@ const player = {
   hp: 100, maxHp: 100,
   armor: 0, armorHp: 0, armorMax: 0,
   alive: false, deployed: false,
+  // SCP-079：本体是设施里的机器，没有可被击中的身体
+  isAI: false,
+  // 附身收容物：本体就是 SCP_LIST 里那只实体，玩家对象只是视角载体
+  isSCP: false,
+  // 半自动武器的"上一帧是否按住开火"
+  fireHeld: false,
   onGround: true, crouch: false, sprinting: false, ads: false,
   stamina: 1, eyeH: EYE_STAND, eyeHCur: EYE_STAND,
   mouseDX: 0, mouseDY: 0,
@@ -34,23 +55,27 @@ const player = {
   footT: 0,
 
   init() {
+    const LO = effectiveLoadout();
     this.pos.set(FAC.spawn.x, 0, FAC.spawn.z);
     this.yaw = FAC.spawn.yaw; this.pitch = 0;
-    this.hp = this.maxHp = 100;
-    const ar = ARMOR_DEFS[clamp(LOADOUT.armor | 0, 0, 3)];
+    this.hp = this.maxHp = 115;
+    const ar = ARMOR_DEFS[clamp(LO.armor | 0, 0, 3)];
     this.armor = ar.id;
     this.armorMax = ar.hp; this.armorHp = ar.hp;
-    // 武器槽
+    // 武器槽（研究员 / D 级人员是空手，槽位会是空的）
     this.slots = [];
     const mk = (id, mods, isSecondary) => {
+      if (!id) return null;
       const st = computeWeaponStats(id, mods);
       return {
         id, mods, stats: st, isSecondary: !!isSecondary,
         mag: st.mag, reserve: st.reserve, reloading: false,
       };
     };
-    this.slots.push(mk(LOADOUT.primary, LOADOUT.mods.primary));
-    this.slots.push(mk(LOADOUT.secondary, LOADOUT.mods.secondary, true));
+    const pw = mk(LO.primary, LO.mods.primary);
+    const sw = mk(LO.secondary, LO.mods.secondary, true);
+    if (pw) this.slots.push(pw);
+    if (sw) this.slots.push(sw);
     this.curSlot = 0;
     this.stamina = 1; this.sleep = 100;
     this.grabbedBy = null; this.grabT = 0;
@@ -60,7 +85,8 @@ const player = {
     this.kills = 0; this.shots = 0; this.hits = 0; this.headshots = 0;
     this.dmgDealt = 0; this.dmgTaken = 0;
     this.bleeding = 0;
-    VM.equip(this.slots[0].id, this.slots[0].mods);
+    if (this.slots.length) VM.equip(this.slots[0].id, this.slots[0].mods);
+    else VM.unequip();
     const arMul = ARMOR_DEFS[this.armor].mobility;
     this.mobilityMul = arMul;
   },
@@ -155,10 +181,15 @@ const player = {
   // ---------------- 射击 ----------------
   tryFire(dt) {
     const w = this.cur();
+    // 半自动要"重新按一次"才发射 —— 先算按键边沿，且必须在所有 early return 之前更新
+    const held = !!keys.fire;
+    const pressed = held && !this.fireHeld;
+    this.fireHeld = held;
     if (!w || !this.alive) return;
     if (w.reloading) return;
     if (this.fireT > 0) { this.fireT -= dt; return; }
-    if (keys.fire) {
+    const semi = w.stats.mode === 'semi';
+    if (held && (!semi || pressed)) {
       if (w.mag <= 0) { this.startReload(); return; }
       this.fireOnce();
       const rpm = w.stats.rpm;
@@ -169,6 +200,7 @@ const player = {
 
   fireOnce() {
     const w = this.cur();
+    if (!w) return;                 // 空手角色没有可开火的东西
     const s = w.stats;
     w.mag--;
     this.shots++;
@@ -242,6 +274,10 @@ const player = {
   damage(amt, attacker, opts) {
     if (!this.alive || GAME.over) return;
     if (DEBUG.god) return;
+    if (GAME.staging && GAME.staging.active) return;   // 待命期间还没进场，打不到
+    if (this.isAI) return;          // SCP-079 没有身体，打不到
+    if (this.isSCP) return;         // 附身收容物：伤害走 SCP 实体自己的 damage()
+    if (GAME.spawnProtectT > 0) return;   // 重新部署的无敌时间
     const o = opts || {};
     const limb = o.limb || 'torso';
     let final = amt;
@@ -292,8 +328,8 @@ const player = {
     if (FAC.terminal && !FAC.terminal.done) consider(FAC.terminal, FAC.terminal.range);
     if (FAC.nuke && !FAC.nuke.done) consider(FAC.nuke, FAC.nuke.range);
     if (FAC.coffee && !FAC.coffee.done) consider(FAC.coffee, FAC.coffee.range);
-    // ---- 农场地图（收容行动）：给 096 戴头套 ----
-    if (FAC.mode === 'farm' && typeof SCP_LIST !== 'undefined') {
+    // ---- 给 SCP-096 戴收容头套（两个行动通用：它打不死，只能这样收容）----
+    if (typeof SCP_LIST !== 'undefined') {
       const s = SCP_LIST.find(v => v.key === '096');
       if (s && s.alive && !s.hooded) {
         consider({ hood096: true, x: s.pos.x, z: s.pos.z, range: 3.2, holdNeed: 4.0 }, 3.2);
@@ -301,6 +337,19 @@ const player = {
     }
     // ---- 收容档案照片：两个行动都有，不受地图类型限制 ----
     for (const p of PHOTOS) if (!p.done) consider(p, p.range);
+    // ---- SCP-1440（5K 行动）：按住 F 让它跟随 / 停下 ----
+    // ⚠️ 反叛之狐不给"跟随"选项 —— 它要的是处决，两个交互叠在同一个位置会互相抢。
+    const isRebel = GAME.mission === 'fivek' && typeof roleView === 'function' && roleView().id === 'rebel';
+    if (typeof S1440 !== 'undefined' && S1440.active && S1440.ent && !isRebel) {
+      const e = S1440.ent;
+      if (S1440.follow) consider({ s1440Release: true, x: e.pos.x, z: e.pos.z, range: 3.8, holdNeed: 0.8 }, 3.8);
+      else consider({ s1440Follow: true, x: e.pos.x, z: e.pos.z, range: 3.8, holdNeed: 1.2 }, 3.8);
+    }
+    // ---- 反叛之狐：处决 SCP-1440（仅 5K）----
+    if (isRebel && typeof S1440 !== 'undefined' && S1440.active && S1440.ent && !S1440.executed) {
+      const e = S1440.ent;
+      consider({ exec1440: true, x: e.pos.x, z: e.pos.z, range: 3.6, holdNeed: 6.0 }, 3.6);
+    }
     // 撤离点（两者通用，需要目标链完成）
     if (FAC.extract && extractReady()) consider(FAC.extract, FAC.extract.range);
     this.interact = best;
@@ -313,6 +362,7 @@ const player = {
 const keys = {
   fwd: false, back: false, left: false, right: false,
   sprint: false, crouch: false, jump: false, fire: false, ads: false,
+  o79Speaker: false,      // SCP-079 按住 T 用扬声器
 };
 let pointerLocked = false;
 
@@ -330,12 +380,16 @@ function setupInput() {
       case 'ShiftLeft': case 'ShiftRight': keys.sprint = true; break;
       case 'ControlLeft': case 'KeyC': keys.crouch = true; break;
       case 'Space': keys.jump = true; e.preventDefault(); break;
-      case 'KeyR': if (player.alive) player.startReload(); break;
-      case 'Digit1': if (player.alive) player.switchSlot(0); break;
-      case 'Digit2': if (player.alive) player.switchSlot(1); break;
-      case 'KeyN': if (player.alive) { NVG.toggle(); } break;
-      case 'KeyG': if (player.alive) VM.toggleLight(); break;
-      case 'KeyF': /* 按住由 update 处理 */ break;
+      case 'KeyR': if (AI079.active) { o79LockToggle(); break; } if (player.alive) player.startReload(); break;
+      case 'Digit1': if (AI079.active) break; if (player.alive) player.switchSlot(0); break;
+      case 'Digit2': if (AI079.active) break; if (player.alive) player.switchSlot(1); break;
+      case 'KeyN': if (AI079.active) { o79Blackout(); break; } if (player.alive) { NVG.toggle(); } break;
+      case 'KeyG': if (AI079.active) { o79TeslaFire(); break; } if (player.alive) VM.toggleLight(); break;
+      case 'KeyF': if (AI079.active) o79DoorToggle(); /* 人类：按住由 update 处理 */ break;
+      // ---- SCP-079 专用 ----
+      case 'KeyQ': if (AI079.active) o79Switch(-1); break;
+      case 'KeyE': if (AI079.active) o79Switch(1); break;
+      case 'KeyT': if (AI079.active) keys.o79Speaker = true; break;
       case 'KeyM': if (GAME.phase === 'playing') toggleBigMap(); break;
       case 'Tab': e.preventDefault(); if (GAME.phase === 'playing') toggleObjPanel(); break;
       case 'Escape': if (GAME.phase === 'playing') togglePause(); break;
@@ -355,6 +409,7 @@ function setupInput() {
       case 'ControlLeft': case 'KeyC': keys.crouch = false; break;
       case 'Space': keys.jump = false; break;
       case 'KeyF': keys.interact = false; break;
+      case 'KeyT': keys.o79Speaker = false; break;
     }
   });
 
@@ -412,6 +467,19 @@ function exitLock() { document.exitPointerLock && document.exitPointerLock(); }
    每帧更新玩家
    ===================================================================== */
 function updatePlayer(dt) {
+  // 反叛之狐的待命阶段：还没突入设施，不能动也不能开枪
+  if (GAME.staging && GAME.staging.active) {
+    player.ads = false;
+    player.trauma = dampF(player.trauma, 0, 2.6, dt);
+    return;
+  }
+  // SCP-079 / 附身收容物：不走路不开枪，视角由各自的模块驱动
+  if (player.isAI || player.isSCP) {
+    if (player.isAI && typeof update079View === 'function') update079View();
+    player.ads = false;
+    player.trauma = dampF(player.trauma, 0, 2.6, dt);
+    return;
+  }
   if (!player.alive) {
     // 死亡后相机缓慢下坠
     player.eyeH = dampF(player.eyeH, 0.45, 3.5, dt);
@@ -466,6 +534,11 @@ function completeInteract(obj) {
   // 收容行动：给 SCP-096 戴头套 / 划掉照片
   if (obj.hood096) { hoodSCP096(); return; }
   if (obj.isPhoto) { destroyPhoto(obj); return; }
+  if (obj.s1440Follow) { set1440Follow(true); return; }
+  if (obj.s1440Release) { set1440Follow(false); return; }
+  if (obj.exec1440) { execute1440(); return; }
+  // 净化行动：关闭感染源（复用 breakers 的交互位，但走自己的结算）
+  if (obj.isInfectionSource) { onInfectionSourceDone(obj); return; }
   if (obj.key && obj.key.startsWith('breaker_')) {
     obj.done = true;
     obj.lever.rotation.x = -1.1;
@@ -494,9 +567,17 @@ function completeInteract(obj) {
 }
 
 function collectPickup(p) {
+  const d = p.def;
+  // 补给武器只给"没枪的阵营"（Class-D / 科学家 / 保安）捡
+  if (d.kind === 'weapon' && !canPickWeapons()) {
+    if (!p._warned || nowT - p._warned > 6) {
+      p._warned = nowT;
+      toast('这件武器你用不上（只有 Class-D / 科学家 / 保安 能捡）', 2400, 'warn');
+    }
+    return;
+  }
   p.taken = true;
   scene.remove(p.group);
-  const d = p.def;
   if (d.kind === 'ammo') {
     for (const w of player.slots) {
       if (d.for.indexOf(w.id) >= 0) {
@@ -515,8 +596,35 @@ function collectPickup(p) {
   } else if (d.kind === 'battery') {
     NVG.addBattery(d.amount);
     toast('装置电池 +' + d.amount + '%', 1500, 'good');
+  } else if (d.kind === 'weapon') {
+    equipPickedWeapon(d.wpn);
   }
   AudioSys.pickup();
+}
+
+/* 捡起地上的武器：按「主武器在前、副武器在后」重排槽位后替换对应的那把。
+   原来的枪直接被换掉，弹药按新枪满配给 —— 地上捡的东西不继承旧弹匣。 */
+function equipPickedWeapon(wpnId) {
+  const def = WPN_DEFS[wpnId];
+  if (!def) return;
+  const st = computeWeaponStats(wpnId, {});
+  const w = {
+    id: wpnId, mods: {}, stats: st, isSecondary: !!def.pistol,
+    mag: st.mag, reserve: st.reserve, reloading: false,
+  };
+  const list = player.slots.slice().sort((a, b) => (a.isSecondary ? 1 : 0) - (b.isSecondary ? 1 : 0));
+  if (def.pistol) {
+    const i = list.findIndex(x => x.isSecondary);
+    if (i >= 0) list[i] = w; else list.push(w);
+  } else {
+    const i = list.findIndex(x => !x.isSecondary);
+    if (i >= 0) list[i] = w; else list.unshift(w);
+  }
+  player.slots = list;
+  player.curSlot = Math.max(0, list.indexOf(w));
+  VM.equip(w.id, w.mods);
+  killfeed('拾取 ' + def.name + ' · ' + def.cls, 'good');
+  toast('拾取 ' + def.full + '（' + def.mag + ' 发）', 2600, 'good');
 }
 
 function useMedkit() {

@@ -215,12 +215,123 @@ const AudioSys = (() => {
     ambient.wg.gain.value = 0.05 + t * 0.06;
   }
 
+  // ---------- 行动音乐（落锤行动 · Nu-7 入场广播）----------
+  // 用 HTMLAudioElement + MediaElementSource 而不是 decodeAudioData：
+  // 这首曲子有近 4 分钟，解码成 Float32 常驻内存要 80MB 以上；
+  // media element 走流式解码，内存开销可以忽略。
+  let musicEl = null, musicGain = null, musicGen = 0;
+  function ensureMusic() {
+    if (!ready) return false;
+    if (musicEl) return true;
+    try {
+      musicEl = new Audio();
+      musicEl.preload = 'auto';
+      musicEl.loop = false;
+      const src = ctx.createMediaElementSource(musicEl);
+      musicGain = ctx.createGain();
+      musicGain.gain.value = 0;
+      src.connect(musicGain); musicGain.connect(master);
+      return true;
+    } catch (e) { console.warn('音乐通道创建失败', e); musicEl = null; return false; }
+  }
+  function playMusic(url, vol, loop) {
+    if (!ensureMusic()) return;
+    const gen = ++musicGen;
+    try {
+      if (url && musicEl.getAttribute('src') !== url) musicEl.setAttribute('src', url);
+      musicEl.loop = !!loop;
+      musicEl.currentTime = 0;
+      const p = musicEl.play();
+      if (p && p.catch) p.catch(() => { });   // 自动播放被拦截时静默忽略
+      const t = ctx.currentTime;
+      musicGain.gain.cancelScheduledValues(t);
+      musicGain.gain.setValueAtTime(0.0001, t);
+      musicGain.gain.linearRampToValueAtTime(vol == null ? 0.42 : vol, t + 1.8);
+    } catch (e) { }
+    return gen;
+  }
+  function stopMusic(fade) {
+    if (!musicEl || !musicGain) return;
+    const gen = ++musicGen;
+    const f = fade == null ? 1.2 : fade;
+    try {
+      const t = ctx.currentTime;
+      musicGain.gain.cancelScheduledValues(t);
+      musicGain.gain.setValueAtTime(musicGain.gain.value, t);
+      musicGain.gain.linearRampToValueAtTime(0.0001, t + f);
+    } catch (e) { }
+    // 淡出结束后才真正暂停；用 gen 令牌防止"停了又立刻播"时误伤新播放
+    setTimeout(() => {
+      if (gen !== musicGen) return;
+      try { musicEl.pause(); musicEl.currentTime = 0; } catch (e) { }
+    }, f * 1000 + 80);
+  }
+  function setMusicVol(v) { if (musicGain) musicGain.gain.value = v; }
+  // 供自检/调试读取音乐通道的真实状态
+  function musicState() {
+    if (!musicEl) return { exists: false };
+    return {
+      exists: true,
+      src: (musicEl.getAttribute('src') || '').split('/').pop(),
+      paused: musicEl.paused,
+      t: +musicEl.currentTime.toFixed(2),
+      dur: isFinite(musicEl.duration) ? +musicEl.duration.toFixed(1) : 0,
+      vol: musicGain ? +musicGain.gain.value.toFixed(3) : 0,
+      err: musicEl.error ? musicEl.error.code : 0,
+      readyState: musicEl.readyState,
+    };
+  }
+
+  // ---------- 全场警报（行动开始 → 结束持续鸣响）----------
+  // 两层：低频底噪（垫在环境里不刺耳）+ 周期性 whoop 扫频。
+  let alarmTimer = null, alarmBed = null;
+  function startAlarm() {
+    if (!ready || alarmTimer) return;
+    const o1 = ctx.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = 148;
+    const o2 = ctx.createOscillator(); o2.type = 'sine'; o2.frequency.value = 74;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 430; lp.Q.value = 0.7;
+    const g = ctx.createGain(); g.gain.value = 0.030;
+    o1.connect(lp); o2.connect(lp); lp.connect(g); g.connect(ambGain);
+    o1.start(); o2.start();
+    alarmBed = { o1, o2 };
+    const whoop = () => {
+      if (!ready) return;
+      tone(640, 0.70, { gain: 0.055, type: 'sine', slideTo: 920 });
+      tone(642, 0.70, { gain: 0.030, type: 'triangle', slideTo: 922, delay: 0.015 });
+    };
+    whoop();
+    alarmTimer = setInterval(whoop, 1500);
+  }
+  function stopAlarm() {
+    if (alarmTimer) { clearInterval(alarmTimer); alarmTimer = null; }
+    if (alarmBed) {
+      try { alarmBed.o1.stop(); alarmBed.o2.stop(); } catch (e) { }
+      alarmBed = null;
+    }
+  }
+  function alarmOn() { return !!alarmTimer; }
+
+  // 暂停时把音乐压低、警报停掉；恢复时还原
+  let pauseSavedVol = null, pauseAlarmWasOn = false;
+  function setPaused(on) {
+    if (!ready) return;
+    if (on) {
+      if (musicGain) { pauseSavedVol = musicGain.gain.value; musicGain.gain.value = pauseSavedVol * 0.22; }
+      pauseAlarmWasOn = !!alarmTimer;
+      if (pauseAlarmWasOn) stopAlarm();
+    } else {
+      if (musicGain && pauseSavedVol != null) { musicGain.gain.value = pauseSavedVol; pauseSavedVol = null; }
+      if (pauseAlarmWasOn) { pauseAlarmWasOn = false; startAlarm(); }
+    }
+  }
+
   return {
     init, resume, setVol, ready: () => ready,
     gunshot, suppressed, dryFire, reload, bolt,
     hitmark, killConfirm, hurt, pickup, uiClick, uiBack, uiHover,
     alarm, door, beep, scpRoar, boneClick, sleepDrone, hallucinate,
     startAmbient, stopAmbient, setTension,
+    playMusic, stopMusic, setMusicVol, startAlarm, stopAlarm, alarmOn, setPaused, musicState,
   };
 })();
 

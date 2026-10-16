@@ -187,6 +187,10 @@ vmScene.add(new THREE.HemisphereLight(0xb8c4d4, 0x30302c, 1.15));
 const ENV = {
   facility: { fog: [0x05070a, 4, 46], bg: 0x05070a, hemi: [0x38414e, 0x16181c, 0.58], sun: [0xbfd0e0, 0.38] },
   farm: { fog: [0x0a0e16, 12, 120], bg: 0x070a12, hemi: [0x33405c, 0x151610, 0.52], sun: [0xa8bce8, 0.62] },
+  // 市区：夜里、带城市光污染。
+  // ⚠️ 别调太暗 —— 之前 sun 只有 0.34，开了夜视仪还是一团黑：
+  //    夜视仪只是在画面上叠加滤镜（brightness/对比），底图本身太暗它救不回来。
+  city: { fog: [0x16141f, 22, 175], bg: 0x121020, hemi: [0x5c5678, 0x26202a, 0.85], sun: [0xd8cce8, 0.68] },
 };
 function applyEnvironment(mode) {
   const e = ENV[mode] || ENV.facility;
@@ -222,7 +226,12 @@ const NVG = {
   init() {
     this.filterEl = el('nvgOv');
   },
-  gear() { return (typeof LOADOUT !== 'undefined' && LOADOUT.gear) || 'none'; },
+  // 头戴装置要跟着「当前角色的实际配装」走，不能直接读 LOADOUT ——
+  // 否则随机到研究员 / D 级人员时会凭空继承玩家上次给 MTF 选的 SCRAMBLE
+  gear() {
+    if (typeof effectiveLoadout === 'function') return (effectiveLoadout().gear) || 'none';
+    return (typeof LOADOUT !== 'undefined' && LOADOUT.gear) || 'none';
+  },
   def() { return (typeof GEAR_DEFS !== 'undefined' && GEAR_DEFS[this.gear()]) || null; },
   label() { const d = this.def(); return d ? d.name : '视觉增强装置'; },
   shortLabel() { const d = this.def(); return d ? d.short : '—'; },

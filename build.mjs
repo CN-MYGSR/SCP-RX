@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const out = join(root, 'dist');
-const ENTRIES = ['index.html', 'css', 'js', 'vendor', 'media'];
+const ENTRIES = ['index.html', 'css', 'js', 'vendor', 'media', 'audio'];
 
 function copyTree(src, dst) {
   const st = statSync(src);

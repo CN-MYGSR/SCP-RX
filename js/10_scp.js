@@ -388,6 +388,8 @@ function spawnSCP(key, x, z, opts) {
     scrambleHold: false, scramTold: false,
     // 收容行动：是否已戴上收容头套（戴上后永久失能）
     hooded: false,
+    // 暴走已持续时长（用于"追不到人会自动平静"的兜底）
+    enrageT: 0,
     // 手臂姿态覆盖（攻击/挥砍用，优先于走路摆臂）
     armOverride: 0, armLx: 0, armRx: 0,
     // 攻击/受击
@@ -400,9 +402,16 @@ function spawnSCP(key, x, z, opts) {
     spawnX: x, spawnZ: z,
   };
   if (key === '3114') {
-    // 伪装：先躺在地上
-    g.rotation.z = HPI * 0.94;
-    g.position.y = 0.2;
+    // 伪装：套一个设施里常见 NPC / 武装单位的外形，骨架本体先藏起来。
+    // 伪装对象覆盖 设施人员（D级/研究员/保安）+ 混沌分裂者 + 蛇之手 + MTF Nu-7。
+    const dk = DISGUISE_KINDS[(Math.random() * DISGUISE_KINDS.length) | 0];
+    const drig = buildDisguiseModel(dk);
+    drig.group.position.set(x, 0, z);
+    drig.group.rotation.y = s.yaw;
+    scene.add(drig.group);
+    s.disguise = { kind: dk, rig: drig, group: drig.group, wanderT: rand(0.5, 3), wx: x, wz: z, walkT: 0 };
+    s.disguiseName = disguiseLabel(dk);
+    g.visible = false;
   }
   SCP_LIST.push(s);
   return s;
@@ -444,24 +453,61 @@ function raySphere(o, dir, cx, cy, cz, r, maxD) {
   if (t < 0.0001 || t > maxD) return null;
   return t;
 }
-// 返回最近的 SCP 命中：{scp, dist, head}
+// 返回最近的命中。
+// ⚠️ 名字叫 raycastSCPs 但实际是"所有可被玩家打中的实体"——
+//    除了 SCP，还包括敌对势力（CI / 蛇之手）和逃窜的 D 级人员。
+//    漏掉它们的话玩家根本打不到敌对势力，任务会变成死局。
+//    返回 {scp, dist, head} 或 {ent, dist, head, isHostile:true}
 function raycastSCPs(o, dir, maxD) {
   let best = null, bestT = maxD;
+  const test = (e, tag) => {
+    const r = e.radius, h = e.height;
+    const tb = rayCylEntity(o, dir, e.pos.x, e.pos.z, r, e.pos.y + 0.1, e.pos.y + h * 0.86, bestT);
+    const hy = e.pos.y + h * 0.92;
+    const hb = raySphere(o, dir, e.pos.x, hy, e.pos.z, Math.max(0.22, r * 0.75), bestT);
+    if (hb != null && hb < bestT) { bestT = hb; best = tag ? { ent: e, dist: hb, head: true, isHostile: true } : { scp: e, dist: hb, head: true }; }
+    if (tb != null && tb < bestT) { bestT = tb; best = tag ? { ent: e, dist: tb, head: false, isHostile: true } : { scp: e, dist: tb, head: false }; }
+  };
   for (const s of SCP_LIST) {
     if (!s.alive) continue;
     if (s.def.onlyVisibleWithNVG && !NVG.on) {
       const d = Math.hypot(s.pos.x - o.x, s.pos.z - o.z);
       if (d > s.def.revealRange) continue;
     }
-    const r = s.radius;
-    const h = s.height;
-    // 躯干
-    const tb = rayCylEntity(o, dir, s.pos.x, s.pos.z, r, s.pos.y + 0.1, s.pos.y + h * 0.86, bestT);
-    // 头
-    const hy = s.pos.y + h * 0.92;
-    const hb = raySphere(o, dir, s.pos.x, hy, s.pos.z, Math.max(0.22, r * 0.75), bestT);
-    if (hb != null && hb < bestT) { bestT = hb; best = { scp: s, dist: hb, head: true }; }
-    if (tb != null && tb < bestT) { bestT = tb; best = { scp: s, dist: tb, head: false }; }
+    test(s, false);
+  }
+  // 敌对单位：混沌分裂者 / 蛇之手
+  // ⚠️ 玩家自己就是这两个势力之一时（CI / 蛇之手身份），同阵营的 NPC 不是目标 ——
+  //    否则会出现"自己能打自己人"的不对称。
+  const mySide = (typeof roleView === 'function' && roleView()) ? roleView().side : null;
+  if (typeof FACTION_LIST !== 'undefined') {
+    for (const a of FACTION_LIST) {
+      if (!a.alive) continue;
+      if (mySide && a.kind === mySide) continue;      // ci / hand 同阵营不打
+      test(a, true);
+    }
+  }
+  if (typeof PERSONNEL_LIST !== 'undefined') {
+    // ⚠️ 目标范围必须跟"玩家是不是与站点为敌"一致（playerHostileToSite）——
+    //    否则会出现"他们打得到我、我打不到他们"的不对称。
+    //    基金会自己人视角：只有逃窜的 D 级人员是合法目标。
+    const hostileSite = (typeof playerHostileToSite === 'function') && playerHostileToSite();
+    for (const p of PERSONNEL_LIST) {
+      if (!p.alive || p.escaped) continue;
+      if (mySide && p.def.side === mySide) continue;  // 同阵营（CI ↔ Class-D）不打
+      if (hostileSite || p.def.side === 'ci') test(p, true);
+    }
+  }
+  // 玩家与特遣队队友敌对时（混沌分裂者 / 5K 里的反叛之狐），队友也是可射击目标 ——
+  // 同样必须与队友 AI 读同一个判定，否则又是不对称。
+  if (typeof alliesHostileToPlayer === 'function' && alliesHostileToPlayer()
+    && typeof ALLY_LIST !== 'undefined') {
+    for (const a of ALLY_LIST) { if (a.alive) test(a, true); }
+  }
+  // 净化行动：被感染者 —— 它们不是收容物、也不属于任何势力，
+  // 漏在这里就会"看得到却打不到"（和之前 SCP / 势力那两次是同一个坑）。
+  if (typeof INFECTED !== 'undefined') {
+    for (const m of INFECTED) if (m.alive) test(m, true);
   }
   return best;
 }
@@ -478,6 +524,11 @@ function damageSCP(s, amt, opts) {
   }
   const o = opts || {};
   const def = s.def;
+  // 绝对免疫：SCP-096 的躯体无法被常规火力破坏，只能靠收容头套压制
+  if (def.immortal) {
+    if (o.byPlayer && Math.random() < 0.22) floatText(s, '无效 · 需收容头套', '#9aa0a4');
+    return 0;
+  }
   // 免疫判定
   if (def.immuneWhenMoving && !s.observed) {
     if (o.byPlayer && Math.random() < 0.25) floatText(s, '无效', '#9aa0a4');
@@ -488,6 +539,8 @@ function damageSCP(s, amt, opts) {
     return 0;
   }
   let dmg = amt * (GAME.protocol ? 2.0 : 1.0);     // 收容协议：HID 装置上线，伤害翻倍
+  // 护送幸存人员换来的加成只作用于**玩家自己**打出的伤害
+  if (o.byPlayer) dmg *= (GAME.bonusAnomaly || 1);
   if (o.head) dmg *= 1.6;
   s.hp -= dmg;
   s.hitFlash = 0.16;
@@ -537,6 +590,19 @@ function killSCP(s, o) {
   onSCPKilled(s);
   broadcast('◤ ' + s.name + ' 已停止活动 · 收容状态确认');
   setTimeout(() => { if (s.group.parent) s.group.parent.remove(s.group); }, 2600);
+  // 3114 的伪装模型是挂在场景上的，别把它留在原地
+  if (s.disguise && s.disguise.group.parent) {
+    const dg = s.disguise.group;
+    setTimeout(() => { if (dg.parent) dg.parent.remove(dg); }, 2600);
+  }
+  // ⚠️ 被压制的是**玩家操控的**收容物 → 玩家的这一条命也结束了。
+  //    没有这一段的话，玩家会卡在"本体已死但自己还活着"的状态里。
+  if (s.playerControlled) {
+    s.playerControlled = false;
+    if (typeof stopPlayableSCP === 'function') stopPlayableSCP();
+    player.isSCP = false;
+    player.die(null, { limb: 'torso', cause: s.name + ' 已被重新收容' });
+  }
 }
 
 /* ---------------------------------------------------------------------
@@ -574,8 +640,8 @@ function updateSCPs(dt) {
       continue;
     }
 
-    // 选择目标
-    pickTarget(s);
+    // 选择目标（被玩家附身的收容物不需要 AI 目标）
+    if (!s.playerControlled) pickTarget(s);
     // 苏醒门槛：设施深处的收容物不会一开局就扑向入口区，
     // 但玩家主动靠近（<32m）会立刻惊动它们。
     if (!s.awake) {
@@ -599,13 +665,14 @@ function updateSCPs(dt) {
       s.group.rotation.y = s.yaw;
       continue;
     }
-    // 各行为的更新
-    const fn = SCP_AI[s.def.behavior];
+    // 各行为的更新（被玩家附身时跳过 AI —— 移动与攻击由 updatePlayableSCP 驱动，
+    // 但下面的模型动画照常跑）
+    const fn = s.playerControlled ? null : SCP_AI[s.def.behavior];
     if (fn) fn(s, dt);
     // 动画
     animateSCP(s, dt);
     // 位移到模型
-    s.group.position.set(s.pos.x, s.pos.y + (s.key === '3114' && s.disguised ? 0.2 : 0), s.pos.z);
+    s.group.position.set(s.pos.x, s.pos.y, s.pos.z);
     if (!(s.key === '3114' && s.disguised)) s.group.rotation.z = 0;
     s.group.rotation.y = s.yaw;
     // 受击闪白（已改为整体压扁反馈）
@@ -615,17 +682,20 @@ function updateSCPs(dt) {
 
 function pickTarget(s) {
   let t = null, bd = 1e9;
-  if (player.alive) {
-    const d = Math.hypot(player.pos.x - s.pos.x, player.pos.z - s.pos.z);
-    t = player; bd = d;
-  }
-  if (typeof ALLY_LIST !== 'undefined') {
-    for (const a of ALLY_LIST) {
-      if (!a.alive) continue;
-      const d = Math.hypot(a.pos.x - s.pos.x, a.pos.z - s.pos.z);
-      if (d < bd) { bd = d; t = a; }
-    }
-  }
+  const consider = (h) => {
+    if (!h || !h.alive || h.escaped) return;
+    const d = Math.hypot(h.pos.x - s.pos.x, h.pos.z - s.pos.z);
+    if (d < bd) { bd = d; t = h; }
+  };
+  // ⚠️ 玩家**不再无条件优先**。以前这里先把玩家塞成初始目标（bd = 玩家距离），
+  //    只有比玩家更近的队友才能顶掉它 —— 结果玩家在两百米外也会被一路追过来，
+  //    而身边明明有更近的保安 / 研究员却没人打（"SCP 只咬玩家"的根因）。
+  //    现在统一按"最近的人"选，玩家只是候选之一。
+  //    SCP-079 没有身体、玩家附身收容物时"玩家"就是那只 SCP —— 都不该被当成目标。
+  if (player.alive && !player.isAI && !player.isSCP) consider(player);
+  if (typeof ALLY_LIST !== 'undefined') for (const a of ALLY_LIST) consider(a);
+  if (typeof PERSONNEL_LIST !== 'undefined') for (const p of PERSONNEL_LIST) consider(p);
+  if (typeof FACTION_LIST !== 'undefined') for (const f of FACTION_LIST) consider(f);
   s.target = t;
   s.distToTarget = bd;
 }
@@ -761,6 +831,25 @@ const SCP_AI = {
       s.model.group.visible = true;
       // 低头抽泣
       s.model.neck.rotation.x = 0.55 + Math.sin(nowT * 2.2) * 0.05;
+      // ---- 温顺时不再原地站着 ----
+      // 096 会低着头在设施里慢慢游荡，所以就算你不去找它，
+      // 也可能在某个走廊拐角撞上它 —— 那时你最好别抬头。
+      if (!s.playerControlled) {
+        s.wanderT = (s.wanderT == null ? rand(0.5, 3) : s.wanderT) - dt;
+        const wd = isFinite(s.wanderX) ? Math.hypot(s.wanderX - s.pos.x, s.wanderZ - s.pos.z) : 999;
+        if (s.wanderT <= 0 || wd < 1.4) {
+          s.wanderT = rand(6, 13);
+          const rm = FAC.rooms[(Math.random() * FAC.rooms.length) | 0];
+          if (rm) {
+            s.wanderX = rm.cx + rand(-rm.w * 0.22, rm.w * 0.22);
+            s.wanderZ = rm.cz + rand(-rm.d * 0.22, rm.d * 0.22);
+          }
+        }
+        if (isFinite(s.wanderX) && wd > 1.4) moveToward(s, s.wanderX, s.wanderZ, 1.35, dt);
+        // 抽泣声：靠近时会听见，给玩家一个"它就在附近"的提示
+        const dp = Math.hypot(player.pos.x - s.pos.x, player.pos.z - s.pos.z);
+        if (dp < 26 && Math.random() < dt * 0.22) AudioSys.scpRoar('096', dp * 1.6);
+      }
       const looked = player.alive && playerLooksAt(s.pos.x, s.pos.y + s.height * 0.92, s.pos.z, 22);
       const blocked = looked && NVG.scrambleActive();
       s.scrambleHold = blocked;
@@ -776,6 +865,7 @@ const SCP_AI = {
         s.rageT += dt;
         if (s.rageT > s.def.rageTriggerTime) {
           s.enraged = true;
+          s.enrageT = 0;
           s.state = 'enraged';
           s.model.scrambleQuad && (s.model.scrambleQuad.visible = false);
           subtitle('SCP-096 进入暴走状态', '它已经看见你看见了它', 2600);
@@ -794,6 +884,16 @@ const SCP_AI = {
     // 暴走：无视一切障碍冲向观测者
     s.state = 'enraged';
     s.model.neck.rotation.x = -0.2;
+    // 它打不死 ⇒ 必须给玩家留退路：追不到观测者足够久就重新平静下来，
+    // 否则玩家只能一直逃、永远没法完成收容，任务会变成死局。
+    s.enrageT = (s.enrageT || 0) + dt;
+    if (s.enrageT > (s.def.calmAfter || 25)) {
+      s.enraged = false; s.rageT = 0; s.enrageT = 0; s.target = null;
+      s.state = 'docile';
+      broadcast('◤ SCP-096 已重新平静 · 抓住机会给它戴上收容头套');
+      subtitle('SCP-096 平静下来了', '它失去了观测者 —— 趁现在靠近收容它', 3800);
+      return;
+    }
     if (!s.target) return;
     const d = Math.hypot(s.target.pos.x - s.pos.x, s.target.pos.z - s.pos.z);
     if (Math.random() < dt * 0.6) AudioSys.scpRoar('096', d);
@@ -998,17 +1098,47 @@ const SCP_AI = {
   mimic(s, dt) {
     if (!s.target) return;
     const d = Math.hypot(s.target.pos.x - s.pos.x, s.target.pos.z - s.pos.z);
-    // 伪装阶段：躺在地上装尸体
+    // 伪装阶段：顶着 NPC 的外形在设施里慢慢晃，骨架本体不可见
     if (s.disguised) {
       s.state = 'disguised';
-      s.group.position.y = 0.2;
-      s.group.rotation.z = HPI * 0.94;
-      if (d < 7.5 || s.active) {
-        s.disguised = false;
-        s.group.rotation.z = 0;
-        AudioSys.boneClick(d);
-        subtitle('地上的"尸体"站了起来', 'SCP-3114 · 骸骨', 2200);
-        addTrauma(0.5);
+      s.group.visible = false;
+      const dg = s.disguise;
+      if (dg) {
+        dg.group.visible = true;
+        dg.wanderT -= dt;
+        const wd = Math.hypot(dg.wx - s.pos.x, dg.wz - s.pos.z);
+        if (dg.wanderT <= 0 || wd < 0.7) {
+          dg.wanderT = rand(2.5, 6);
+          const a = rand(0, TAU), r = rand(1.5, 5);
+          dg.wx = s.spawnX + Math.cos(a) * r;
+          dg.wz = s.spawnZ + Math.sin(a) * r;
+        }
+        const mdx = dg.wx - s.pos.x, mdz = dg.wz - s.pos.z;
+        const md = Math.hypot(mdx, mdz);
+        if (md > 0.6) {
+          const sp = 1.1;
+          s.pos.x += mdx / md * sp * dt;
+          s.pos.z += mdz / md * sp * dt;
+          collideMove(s.pos, s.radius, s.height, 0.5);
+          s.yaw = angLerp(s.yaw, Math.atan2(-mdx / md, -mdz / md), clamp(dt * 5, 0, 1));
+          dg.walkT += sp * dt;
+        }
+        // 玩家靠得太近（或它被惊动）→ 露馅
+        if (d < 7.5 || s.active) {
+          s.disguised = false;
+          s.group.visible = true;
+          dg.group.visible = false;
+          AudioSys.boneClick(d);
+          subtitle('那个「' + (s.disguiseName || '人') + '」站了起来', 'SCP-3114 · 骸骨', 2600);
+          addTrauma(0.5);
+        } else {
+          dg.group.position.set(s.pos.x, s.pos.y, s.pos.z);
+          dg.group.rotation.y = s.yaw;
+          const sw = Math.sin(dg.walkT * 2.6) * 0.5;
+          dg.rig.legL.rotation.x = sw; dg.rig.legR.rotation.x = -sw;
+          dg.rig.armR.rotation.set(sw * 0.6, 0, -0.08);
+          dg.rig.armL.rotation.set(-sw * 0.6, 0, 0.08);
+        }
       }
       return;
     }

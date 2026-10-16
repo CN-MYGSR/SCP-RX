@@ -94,11 +94,21 @@ function fireRay(origin, dir, stats) {
   const worldRes = raycastWorld(origin, dir, maxD);
   const worldD = worldRes ? worldRes.dist : maxD;
   if (scpRes && scpRes.dist < worldD) {
+    const hitPt = origin.clone().addScaledVector(dir, scpRes.dist);
+    if (scpRes.isHostile) {
+      // 敌对势力 / 逃窜的 D 级人员：走它们自己的 damage()，并吃「对敌对伤害」加成
+      const e = scpRes.ent;
+      const raw = stats.dmg * (scpRes.head ? 1.6 : 1) * (GAME.bonusHostile || 1);
+      e.damage(raw, player, { head: scpRes.head });
+      floatText(e, (scpRes.head ? '暴击 ' : '') + Math.round(raw), scpRes.head ? '#ffd23f' : '#ffffff');
+      spawnBloodBurst(V3(e.pos.x, e.pos.y + e.height * (scpRes.head ? 0.92 : 0.55), e.pos.z), 'blood', 8);
+      spawnTracer(VM.muzzleWorld, hitPt);
+      return { scpHit: e, head: scpRes.head, dist: scpRes.dist };
+    }
     const dmg = damageSCP(scpRes.scp, stats.dmg, { byPlayer: true, head: scpRes.head, from: player });
     floatText(scpRes.scp, (scpRes.head ? '暴击 ' : '') + Math.round(dmg), scpRes.head ? '#ffd23f' : '#ffffff');
     const bone = (scpRes.scp.key === '3114' || scpRes.scp.key === '173');
     spawnBloodBurst(scpRes.scp.pos.clone().setY(scpRes.scp.pos.y + scpRes.scp.height * (scpRes.head ? 0.92 : 0.55)), bone ? 'bone' : 'blood', 8);
-    const hitPt = origin.clone().addScaledVector(dir, scpRes.dist);
     spawnTracer(VM.muzzleWorld, hitPt);
     return { scpHit: scpRes.scp, head: scpRes.head, dist: scpRes.dist };
   }
@@ -211,7 +221,9 @@ const ACIDS = [];
 const ACID_POOLS = [];
 const ACID_POOL_N = 16;
 let acidPoolHead = 0;
-function spitAcid(s) {
+/* byPlayer：标记这是**可玩 682** 喷的酸。NPC 版的酸池只烧玩家，
+   所以可玩版要在落点额外对 NPC 补一次溅射（见 updateAcid）。 */
+function spitAcid(s, byPlayer) {
   const from = V3(s.pos.x, s.pos.y + s.height * 0.72, s.pos.z);
   const to = s.target ? V3(s.target.pos.x, s.target.pos.y + 1.0, s.target.pos.z) : from.clone().add(V3(0, 0, -6));
   const dir = to.clone().sub(from);
@@ -225,6 +237,7 @@ function spitAcid(s) {
   ACIDS.push({
     mesh: m, t: 0, life: dist / speed,
     vel: dir.multiplyScalar(speed).add(V3(0, dist * 0.22, 0)),
+    byPlayer: !!byPlayer,
   });
   AudioSys.scpRoar('682', 0);
 }
@@ -253,6 +266,15 @@ function updateAcid(dt) {
       pool.x = px; pool.z = pz; pool.r = 1.5; pool.t = 0;
       pool.mesh.material.opacity = 0.55;
       spawnBloodBurst(V3(px, 0.2, pz), 'acid', 6);
+      // ⚠️ 可玩 682 喷的酸要能打到 NPC —— 下面那段酸池伤害只作用于玩家，
+      //    所以这里对落点附近的活人补一次溅射。
+      if (a.byPlayer && typeof scpHumans === 'function') {
+        for (const h of scpHumans()) {
+          if (Math.hypot(h.pos.x - px, h.pos.z - pz) < 3.2) {
+            h.damage(70, (typeof PSCP !== 'undefined' ? PSCP.ent : null), { limb: 'torso' });
+          }
+        }
+      }
     }
   }
   for (let i = 0; i < ACID_POOLS.length; i++) {

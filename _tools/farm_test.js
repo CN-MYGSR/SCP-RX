@@ -58,7 +58,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
   try {
     await send('Runtime.enable'); await send('Log.enable'); await send('Page.enable');
-    await send('Page.navigate', { url: 'http://127.0.0.1:' + PORT + '/index.html?nopause=1' });
+    await send('Page.navigate', { url: 'http://127.0.0.1:' + PORT + '/index.html?nopause=1&role=mtf' });
     await wait(3500);
     await ev('document.querySelector("[data-p=mLoadout]").click()');
     await wait(400);

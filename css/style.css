@@ -299,11 +299,48 @@ i{font-style:normal}
 #endTitle{font-size:34px;letter-spacing:9px;text-align:center;color:var(--teal);text-shadow:0 0 30px rgba(74,216,160,.28)}
 #endTitle.fail{color:var(--red);text-shadow:0 0 30px rgba(216,68,47,.3)}
 #endSub{text-align:center;font-size:12px;letter-spacing:3px;color:var(--txt-dim);margin-top:8px}
+#endRole{text-align:center;font-size:11px;letter-spacing:2px;color:#8ad8a8;margin-top:6px}
+/* 随机角色横幅 + 非 MTF 角色的配装禁用态 */
+.roleBanner{margin:0 0 12px;padding:10px 16px;border:1px solid #2c3a44;border-radius:6px;background:rgba(24,32,38,.72);font-size:12px;line-height:1.7;color:#cfd8dd}
+.roleBanner b{color:#8ad8a8}
+.roleBanner .rbFaction{opacity:.65}
+.roleBanner .rbGoal{color:#e8c06a}
+.loadoutDisabled{opacity:.32;pointer-events:none;filter:grayscale(.7)}
+/* SCP-079 专用 HUD */
+#o79Panel{position:absolute;left:18px;bottom:18px;width:268px;padding:10px 12px;border:1px solid #2a4a5a;border-radius:6px;background:rgba(10,20,26,.72);font-size:11px;letter-spacing:.5px;color:#bfe4f2;pointer-events:none}
+#o79Panel.hidden{display:none}
+.o79Title{font-size:12px;letter-spacing:2px;color:#8ad8ff;margin-bottom:8px;display:flex;justify-content:space-between}
+#o79Tier{color:#e8c06a;letter-spacing:1px}
+.vBar.o79ap{background:linear-gradient(90deg,#2a6a8a,#8ad8ff)}
+.vBar.o79exp{background:linear-gradient(90deg,#5a4a1a,#e8c06a)}
+.o79Cam{margin-top:7px;color:#8ad8ff;opacity:.9}
+.o79Stat{margin-top:4px;color:#cfd8dd}
+.o79Stat b{color:#ff8a7a}
+.o79Keys{margin-top:6px;opacity:.55;font-size:10px;line-height:1.5}
+/* 附身收容物 HUD */
+#pscpPanel{position:absolute;left:18px;bottom:18px;width:268px;padding:10px 12px;border:1px solid #5a2a2a;border-radius:6px;background:rgba(26,10,10,.74);font-size:11px;letter-spacing:.5px;color:#f2c4c4;pointer-events:none}
+#pscpPanel.hidden{display:none}
+#pscpName{color:#ff8a7a;letter-spacing:2px}
+#pscpAtk{color:#e8c06a}
+.pscpSound{margin-top:5px;font-size:10px;line-height:1.6;color:#ff9a6a;max-height:96px;overflow:hidden}
+.pscpSound .sLoud{color:#ff5a3a;font-weight:bold}
+.pscpSound .sNear{color:#ffd23f}
 #endStats .stRow{display:flex;justify-content:space-between;border-bottom:1px dashed var(--line);padding:5px 0}
 #endStats .stRow b{color:var(--txt)}
 
 /* 加载 */
 #bootScreen{z-index:60}
+/* 反叛之狐 · 延迟部署待命屏 */
+#stagingScreen{z-index:62;background:radial-gradient(ellipse at center,rgba(20,26,20,.94),rgba(6,10,8,.99))}
+#stagingScreen.hidden{display:none}
+.stInner{text-align:center;max-width:620px;padding:0 24px}
+.stTag{font-size:10px;letter-spacing:6px;color:#6a8a5a;margin-bottom:14px}
+.stTitle{font-size:44px;letter-spacing:14px;color:#c8e0b0;text-shadow:0 0 26px rgba(120,190,90,.35);margin-bottom:10px}
+.stSub{font-size:12px;letter-spacing:4px;color:#8aa07a;margin-bottom:26px}
+.stNote{font-size:13px;line-height:2;color:#a8b8a0;margin-bottom:34px}
+.stCount{font-size:12px;letter-spacing:2px;color:#8aa07a}
+.stCount b{display:block;font-size:52px;letter-spacing:0;color:#e8c06a;margin-bottom:6px;font-weight:400}
+.stHint{margin-top:30px;font-size:10px;letter-spacing:1px;color:#5a6a52}
 .bootInner{text-align:center}
 .bootLogo{font-size:38px;letter-spacing:14px;color:var(--amber);margin-bottom:26px;text-shadow:0 0 30px rgba(224,182,74,.3)}
 .bootBarWrap{width:320px;height:3px;background:rgba(255,255,255,.08);margin:0 auto}

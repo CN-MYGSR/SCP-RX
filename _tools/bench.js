@@ -45,7 +45,7 @@ const N = 240;
     return r.result.value;
   };
   await send('Runtime.enable'); await send('Page.enable');
-  await send('Page.navigate', { url: 'http://127.0.0.1:' + PORT + '/index.html?nopause=1' });
+  await send('Page.navigate', { url: 'http://127.0.0.1:' + PORT + '/index.html?nopause=1&role=mtf' });
   await new Promise(r => setTimeout(r, 3500));
   await ev('document.querySelector("[data-p=mLoadout]").click()');
   await new Promise(r => setTimeout(r, 300));

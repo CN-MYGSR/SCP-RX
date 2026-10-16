@@ -97,6 +97,75 @@ function updateHUD(dt) {
     if (H.gearLabel.textContent !== gl) H.gearLabel.textContent = gl;
   }
 
+  // ---- SCP-079 面板：AP / EXP / 摄像头 ----
+  const o79 = el('o79Panel');
+  const o79on = (typeof AI079 !== 'undefined') && AI079.active;
+  if (o79) {
+    o79.classList.toggle('hidden', !o79on);
+    if (o79on) {
+      const apMax = o79APMax();
+      el('o79ApBar').style.width = (clamp(AI079.ap / apMax, 0, 1) * 100).toFixed(0) + '%';
+      el('o79ApTxt').textContent = Math.round(AI079.ap) + '/' + apMax;
+      const need = O79_EXP_NEXT[o79TierIdx()];
+      const maxed = AI079.tier >= 5;
+      el('o79ExpBar').style.width = (maxed ? 100 : clamp(AI079.exp / need, 0, 1) * 100).toFixed(0) + '%';
+      el('o79ExpTxt').textContent = maxed ? 'MAX' : Math.round(AI079.exp) + '/' + Math.round(need);
+      el('o79Tier').textContent = 'TIER ' + AI079.tier;
+      const c = o79Cam();
+      const cn = c ? c.name : '—';
+      if (el('o79CamName').textContent !== cn) el('o79CamName').textContent = cn;
+      const hh = String(o79Humans()), ss = String(o79SCPsAlive());
+      if (el('o79Humans').textContent !== hh) el('o79Humans').textContent = hh;
+      if (el('o79Scps').textContent !== ss) el('o79Scps').textContent = ss;
+    }
+  }
+  // ---- 附身收容物面板：本体 HP / 状态 / 击杀 ----
+  const psp = el('pscpPanel');
+  const pscpOn = (typeof PSCP !== 'undefined') && PSCP.active;
+  if (psp) {
+    psp.classList.toggle('hidden', !pscpOn);
+    if (pscpOn) {
+      const e = PSCP.ent, tn = PSCP.tune;
+      el('pscpName').textContent = e ? e.name : '—';
+      el('pscpAtk').textContent = tn.atkName;
+      const hp = Math.max(0, Math.round(e ? e.hp : 0));
+      el('pscpHpBar').style.width = (clamp(hp / Math.max(1, e ? e.maxHp : 1), 0, 1) * 100).toFixed(0) + '%';
+      el('pscpHpTxt').textContent = hp;
+      let st = '';
+      if (tn.frozenWhenSeen) {
+        // 全体共享眨眼节拍：把"还要等多久"直接写出来，不然 173 完全靠猜
+        st = PSCP.observed
+          ? '被注视 · 无法移动（眨眼倒计时 ' + Math.max(0, npcBlinkCd).toFixed(1) + ' 秒）'
+          : '无人注视 · 可以移动' + (npcBlinkT > 0 ? '（窗口还剩 ' + npcBlinkT.toFixed(1) + ' 秒）' : '');
+      }
+      else if (tn.rageOnSight) st = (e && e.enraged) ? '暴走中 · 速度 ×5' : '温顺 · 没有人看你的脸';
+      else if (tn.phase) st = '相位状态 · 可以直接穿墙';
+      else if (tn.soundVision) st = '声呐视觉 · 下方标出会出声的人';
+      if (el('pscpState').textContent !== st) el('pscpState').textContent = st;
+      const kk = String(PSCP.kills), hh = String((typeof o79Humans === 'function') ? o79Humans() : 0);
+      if (el('pscpKills').textContent !== kk) el('pscpKills').textContent = kk;
+      if (el('pscpHumans').textContent !== hh) el('pscpHumans').textContent = hh;
+      const snd = el('pscpSound');
+      if (tn.soundVision) {
+        const sig = PSCP.soundList.map(x => Math.round(x.d) + (x.loud >= 1 ? 'L' : 'q')).join(',');
+        if (snd._sig !== sig) {
+          snd._sig = sig;
+          snd.innerHTML = PSCP.soundList.map(x =>
+            '<div class="' + (x.loud >= 1 ? 'sLoud' : (x.d < 14 ? 'sNear' : '')) + '">'
+            + (x.loud >= 1 ? '▮ 有声 ' : '▯ 轻微 ') + Math.round(x.d) + ' m</div>').join('');
+        }
+      } else if (snd.innerHTML) { snd.innerHTML = ''; snd._sig = ''; }
+    }
+  }
+  // 079 / 附身收容物都没有生命体征面板和弹药，藏掉
+  const hideHuman = o79on || pscpOn;
+  if (H._o79hide !== hideHuman) {
+    H._o79hide = hideHuman;
+    const vit = el('vitals'), amp = el('ammoPanel');
+    if (vit) vit.style.display = hideHuman ? 'none' : '';
+    if (amp) amp.style.display = hideHuman ? 'none' : '';
+  }
+
   // 弹药
   const w = player.cur();
   if (w) {
@@ -120,9 +189,20 @@ function updateHUD(dt) {
       H.slot1.classList.toggle('sel', player.curSlot === 0);
       H.slot2.classList.toggle('sel', player.curSlot === 1);
     }
-    const s1t = '1 ' + player.slots[0].stats.name, s2t = '2 ' + player.slots[1].stats.name;
+    // 空手角色（研究员 / D 级人员）槽位是空的，不能直接读 stats
+    const s1t = '1 ' + (player.slots[0] ? player.slots[0].stats.name : '—');
+    const s2t = '2 ' + (player.slots[1] ? player.slots[1].stats.name : '—');
     if (H.slot1.textContent !== s1t) H.slot1.textContent = s1t;
     if (H.slot2.textContent !== s2t) H.slot2.textContent = s2t;
+  } else {
+    // 空手角色：别让上一局的枪械信息残留在 HUD 上
+    if (H.wName.textContent !== '空手') H.wName.textContent = '空手';
+    if (H.wMode.textContent !== '无武器 · 靠躲，不靠打') H.wMode.textContent = '无武器 · 靠躲，不靠打';
+    if (H.magN.textContent !== '--') H.magN.textContent = '--';
+    if (H.resN.textContent !== '') H.resN.textContent = '';
+    if (H.slot1.textContent !== '') H.slot1.textContent = '';
+    if (H.slot2.textContent !== '') H.slot2.textContent = '';
+    if (H.modRow._wpn !== '__none') { H.modRow._wpn = '__none'; H.modRow.innerHTML = '<span style="opacity:.5">无装备</span>'; }
   }
 
   // 任务时间
@@ -197,17 +277,45 @@ function updateObjectiveHUD() {
   if (!box) return;
   const st = objectiveStatus();
   const objs = currentObjectives();
+  // 护送人员 / 伤害加成（仅落锤行动有）
+  const pSci = (GAME.mission !== 'contain096' && typeof personnelAlive === 'function') ? personnelAlive('scientist') : 0;
+  const pGrd = (GAME.mission !== 'contain096' && typeof personnelAlive === 'function') ? personnelAlive('guard') : 0;
+  const pD = (GAME.mission !== 'contain096' && typeof personnelAlive === 'function') ? personnelAlive('classd') : 0;
   let sig;
-  if (GAME.mission === 'contain096') {
+  if (GAME.mission === 'fivek') {
+    const t = (typeof S1440 !== 'undefined') ? S1440 : null;
+    const rb = (typeof roleView === 'function') && roleView().id === 'rebel';
+    sig = 'k' + (t ? Math.floor(t.holdT * 2) : 0) + '|' + (t ? t.curseKills : 0)
+      + '|' + Math.round(player.hp) + '|' + (t && t.ent ? Math.round(Math.hypot(player.pos.x - t.ent.pos.x, player.pos.z - t.ent.pos.z)) : 0)
+      + '|' + (t && t.holding ? 1 : 0)
+      + '|' + (rb ? 'r' + (t && t.executed ? 1 : 0) + '/' + (typeof nu22Alive === 'function' ? nu22Alive() : 0) : '');
+  } else if (GAME.mission === 'contain096') {
     sig = 'f' + st.find + 'h' + st.hood + 'p' + st.photos + 'e' + st.extract + '|' + st._photosLeft;
+  } else if (GAME.mission === 'city') {
+    sig = 'c' + st.source + st.purge_infected + st.extract
+      + '|' + st._sourcesLeft + '|' + st._infectedLeft + '|' + st._infectedSpawned;
   } else {
     const bn = (GAME.breakers.A ? 1 : 0) + (GAME.breakers.B ? 1 : 0) + (GAME.breakers.C ? 1 : 0);
-    sig = st.power + st.protocol + st.photos + st.purge + st.extract + '|' + bn
-      + '|' + Object.keys(GAME.contained).length + '|' + st._photosLeft;
+    sig = st.power + st.protocol + st.photos + st.purge + st.invaders + st.extract + '|' + bn
+      + '|' + Object.keys(GAME.contained).length + '|' + st._photosLeft + '|' + st._invadersLeft
+      + '|' + GAME.bonusAnomaly + 'x' + GAME.bonusHostile + '|' + pSci + pGrd + pD + '|' + GAME.role
+      + '|' + Math.ceil(FACTION_STATE.ciReinforceT) + ',' + Math.ceil(FACTION_STATE.handReinforceT);
   }
+  // 重新部署的无敌时间也要进签名，否则倒计时不会刷新（按 0.25 秒粒度避免每帧重绘）
+  sig += '|p' + (GAME.spawnProtectT > 0 ? Math.ceil(GAME.spawnProtectT * 4) : 0);
   if (box._sig === sig) return;
   box._sig = sig;
   let s = '';
+  // 身份行：随机角色的回合制模式下，先告诉玩家自己是谁
+  if (GAME.mission !== 'contain096') {
+    const r = roleView();
+    s += '<div class="objItem" style="opacity:.95">你是 ' + r.name
+      + '<span style="opacity:.6"> · ' + r.faction + '</span></div>';
+  }
+  if (GAME.spawnProtectT > 0) {
+    s += '<div class="objItem" style="color:#4ad8a0">🛡 重新部署保护 · '
+      + GAME.spawnProtectT.toFixed(1) + ' 秒</div>';
+  }
   for (const o of objs) {
     const state = st[o.id];
     const cls = state === 'done' ? 'done' : (state === 'active' ? 'active' : '');
@@ -215,6 +323,16 @@ function updateObjectiveHUD() {
     if (state === 'active' && o.id === 'power') {
       const bn = (GAME.breakers.A ? 1 : 0) + (GAME.breakers.B ? 1 : 0) + (GAME.breakers.C ? 1 : 0);
       s += '<div class="objProg">断路器 ' + bn + ' / 3</div>';
+    }
+    // 净化行动：感染源进度 + 场上感染者数量
+    if (state === 'active' && o.id === 'source') {
+      s += '<div class="objProg">已关闭 ' + (FAC.breakers.length - st._sourcesLeft) + ' / ' + FAC.breakers.length + '</div>';
+    }
+    if (o.id === 'purge_infected') {
+      s += '<div class="objProg">场上被感染者 ' + st._infectedLeft + ' 个</div>';
+      if (st._sourcesLeft > 0) {
+        s += '<div class="objProg" style="opacity:.7">感染仍在扩散 · 先关感染源</div>';
+      }
     }
     if (state === 'active' && o.id === 'purge') {
       s += '<div class="objProg">已停止活动 ' + Object.keys(GAME.contained).length + ' / ' + SCP_ORDER.length + '</div>';
@@ -224,6 +342,47 @@ function updateObjectiveHUD() {
     }
     if (state === 'active' && o.id === 'hood' && GAME.saw096) {
       s += '<div class="objProg">靠近后长按 [F] 戴头套</div>';
+    }
+    if (state === 'active' && o.id === 'invaders') {
+      s += '<div class="objProg">混沌分裂者 ' + factionAlive('ci') + ' · 蛇之手 ' + factionAlive('hand') + ' 存活</div>';
+      const nxt = Math.min(
+        FACTION_STATE.ciSpawned ? FACTION_STATE.ciReinforceT : 999,
+        FACTION_STATE.handSpawned ? FACTION_STATE.handReinforceT : 999);
+      if (nxt < 900) s += '<div class="objProg" style="opacity:.7">增援倒计时 ' + Math.max(0, Math.ceil(nxt)) + ' 秒</div>';
+    }
+    if (state === 'pending' && o.id === 'invaders') {
+      const left = Math.max(0, Math.ceil(FACTION_SCHEDULE.ciAt - GAME.elapsed));
+      s += '<div class="objProg">预计 ' + Math.floor(left / 60) + ' 分 ' + (left % 60) + ' 秒后突入</div>';
+    }
+    // 5K：SCP-1440 滞留计时
+    if (state === 'active' && o.id === 'hold' && typeof S1440 !== 'undefined' && S1440.ent) {
+      const dd = Math.hypot(player.pos.x - S1440.ent.pos.x, player.pos.z - S1440.ent.pos.z);
+      const near = S1440.holding;
+      const who = near
+        ? (dd < S1440_HOLD_R ? '你在范围内' : 'Nu-22 正在守着它')
+        : '计时回退中';
+      s += '<div class="objProg">滞留 ' + Math.floor(S1440.holdT) + ' / ' + S1440.holdNeed + ' 秒'
+        + '　<span style="color:' + (near ? '#4ad8a0' : '#e8c06a') + '">'
+        + who + (near || dd < S1440_HOLD_R ? '' : ' · 距 1440 ' + Math.round(dd) + 'm') + '</span></div>';
+    }
+    if (state === 'active' && o.id === 'survive' && typeof S1440 !== 'undefined') {
+      s += '<div class="objProg">1440 已清理 ' + S1440.curseKills + ' 人</div>';
+    }
+    // 反叛之狐的目标进度
+    if (state === 'active' && o.id === 'kill1440' && typeof S1440 !== 'undefined') {
+      s += '<div class="objProg">' + (S1440.executed ? '已处决' : '走近它长按 [F] 执行处决（6 秒引导）') + '</div>';
+    }
+    if (state === 'active' && o.id === 'killNu22') {
+      s += '<div class="objProg">还剩 ' + (st._nu22Left | 0) + ' 名 Nu-22</div>';
+    }
+  }
+  // 护送进度 + 伤害加成（收容物阵营不参与护送，别显示）
+  if (GAME.mission !== 'contain096' && currentRole().side !== 'scp'
+    && (pSci + pGrd + pD > 0 || GAME.bonusAnomaly > 1 || GAME.bonusHostile > 1)) {
+    s += '<div class="objItem" style="opacity:.9">护送 · 待救 ' + (pSci + pGrd) + ' 人'
+      + (pD > 0 ? ' · D级 ' + pD : '') + '</div>';
+    if (GAME.bonusAnomaly > 1 || GAME.bonusHostile > 1) {
+      s += '<div class="objProg">加成 异常 ×' + GAME.bonusAnomaly + ' · 敌对 ×' + GAME.bonusHostile + '</div>';
     }
   }
   box.innerHTML = s;
@@ -241,9 +400,14 @@ function updateInteractHUD() {
   let label = '交互';
   if (it.hood096) label = '为 SCP-096 戴上收容头套 —— 长按 [F]';
   else if (it.isPhoto) label = '划掉照片「' + it.where + '」—— 长按 [F]';
+  else if (it.s1440Follow) label = '让 SCP-1440 跟着你走 —— 长按 [F]';
+  else if (it.s1440Release) label = '让 SCP-1440 停下 —— 长按 [F]';
+  else if (it.exec1440) label = '处决 SCP-1440 —— 长按 [F]（6 秒）';
+  else if (it.isInfectionSource) label = '关闭感染源 ' + it.id + ' —— 长按 [F]';
   else if (it.key && it.key.startsWith('breaker_')) label = '合上断路器 ' + it.id + ' —— 长按 [F]';
   else if (it === FAC.terminal) label = '上传收容协议 —— 长按 [F]';
-  else if (it === FAC.extract) label = GAME.mission === 'contain096' ? '登机撤离 —— 长按 [F]' : '启动撤离电梯 —— 长按 [F]';
+  else if (it === FAC.extract) label = (GAME.mission === 'contain096' || GAME.mission === 'city')
+    ? '登机撤离 —— 长按 [F]' : '启动撤离电梯 —— 长按 [F]';
   else if (it === FAC.nuke) label = '触发核弹装置 · EMP 脉冲 —— 长按 [F]';
   else if (it === FAC.coffee) label = '来一杯咖啡 —— 长按 [F]';
   if (H.interactTxt.textContent !== label) H.interactTxt.textContent = label;
@@ -313,6 +477,26 @@ function drawRadar() {
   }
   for (const m of MINIONS) if (m.alive) drawDot(m.pos.x, m.pos.z, '#b06ad8', 2.6, false);
   for (const a of ALLY_LIST) if (a.alive) drawDot(a.pos.x, a.pos.z, '#5aa8e0', 2.6, false);
+  // ⚠️ 设施人员与两支入侵势力也要上雷达 ——
+  //    之前只画了 SCP / 小怪 / MTF，结果"我在地图上找不到人"变成了单方面的信息差。
+  //    颜色：D 级橙（同它的囚服）、研究员浅灰、保安蓝；CI 暗红、蛇之手绿。
+  if (typeof PERSONNEL_LIST !== 'undefined') {
+    for (const p of PERSONNEL_LIST) {
+      if (!p.alive || p.escaped) continue;
+      const col = p.kind === 'classd' ? '#d4761f' : (p.kind === 'guard' ? '#5aa8e0' : '#cfe0e8');
+      drawDot(p.pos.x, p.pos.z, col, 2.4, false);
+    }
+  }
+  if (typeof FACTION_LIST !== 'undefined') {
+    for (const f of FACTION_LIST) {
+      if (!f.alive) continue;
+      drawDot(f.pos.x, f.pos.z, f.kind === 'ci' ? '#a03a2a' : '#6a9a4a', 2.6, false);
+    }
+  }
+  // 净化行动：被感染者（疫病绿）
+  if (typeof INFECTED !== 'undefined') {
+    for (const m of INFECTED) if (m.alive) drawDot(m.pos.x, m.pos.z, '#8adf3a', 2.6, false);
+  }
   // 目标点
   for (const b of FAC.breakers) if (!b.done) drawDot(b.x, b.z, '#e0b64a', 3, false);
   if (FAC.terminal && !FAC.terminal.done) drawDot(FAC.terminal.x, FAC.terminal.z, '#e0b64a', 3.4, false);
@@ -376,8 +560,8 @@ function drawBigMap() {
   const zoneLine = { HCZ: '#7a4c4c', LCZ: '#7a7250', EZ: '#4c6c8a' };
   const zoneName = { HCZ: '重收容区', LCZ: '轻收容区', EZ: '办公区' };
 
-  // 分区底色带（仅设施地图；农场是户外开阔地，没有分区）
-  if (FAC.mode !== 'farm') {
+  // 分区底色带（只有设施地图有分区；农场和市区是开阔地）
+  if (FAC.mode === 'facility') {
     const zoneBands = [['HCZ', 3, 33], ['LCZ', 34, 49], ['EZ', 50, 70]];
     c.font = 'bold 11px Consolas, monospace';
     c.textAlign = 'left'; c.textBaseline = 'middle';
@@ -449,6 +633,26 @@ function drawBigMap() {
   if (FAC.extract) mark(FAC.extract.x, FAC.extract.z, extractReady() ? '#4ad8a0' : '#6a7a72', 6, '撤离', 'tri');
   for (const s of SCP_LIST) if (s.alive) mark(s.pos.x, s.pos.z, '#d8442f', 4, s.name, 'circle');
   for (const a of ALLY_LIST) if (a.alive) mark(a.pos.x, a.pos.z, '#5aa8e0', 3.4, '', 'circle');
+  // 设施人员 + 两支入侵势力（和雷达保持一致 —— 不画就没人找得到）
+  if (typeof PERSONNEL_LIST !== 'undefined') {
+    for (const p of PERSONNEL_LIST) {
+      if (!p.alive || p.escaped) continue;
+      const col = p.kind === 'classd' ? '#d4761f' : (p.kind === 'guard' ? '#5aa8e0' : '#cfe0e8');
+      const nm = p.kind === 'classd' ? 'D级' : (p.kind === 'guard' ? '保安' : '研究员');
+      mark(p.pos.x, p.pos.z, col, 3.2, nm, 'circle');
+    }
+  }
+  if (typeof FACTION_LIST !== 'undefined') {
+    for (const f of FACTION_LIST) {
+      if (!f.alive) continue;
+      mark(f.pos.x, f.pos.z, f.kind === 'ci' ? '#a03a2a' : '#6a9a4a', 3.6,
+        f.kind === 'ci' ? 'CI' : 'SH', 'circle');
+    }
+  }
+  // 净化行动：被感染者
+  if (typeof INFECTED !== 'undefined') {
+    for (const m of INFECTED) if (m.alive) mark(m.pos.x, m.pos.z, '#8adf3a', 3.0, '', 'circle');
+  }
   mark(player.pos.x, player.pos.z, '#4ad8a0', 6, '', 'tri');
   // 指北
   c.fillStyle = 'rgba(224,182,74,.75)'; c.font = '12px Consolas, monospace'; c.textAlign = 'left';
@@ -477,6 +681,12 @@ function renderObjPanel() {
   const objs = currentObjectives();
   const farm = GAME.mission === 'contain096';
   let s = '<div class="opSection"><h3>行 动 目 标 · ' + currentMission().name + '</h3>';
+  if (!farm) {
+    const r = roleView();
+    s += '<div class="opCard"><div class="ocHead"><span>你的身份</span><span class="ocObj">你是 ' + r.name + '</span></div>'
+      + '<div class="ocBody">' + r.desc + '</div>'
+      + '<div class="ocHint">▸ 阵营：' + r.faction + ' · 目标：' + r.goal + '</div></div>';
+  }
   for (const o of objs) {
     const state = st[o.id];
     s += '<div class="opCard' + (state === 'done' ? ' done' : '') + '">'
@@ -495,11 +705,53 @@ function renderObjPanel() {
       + '<div class="ocHead"><span>' + d.name + ' · ' + d.cn + '</span><span class="ocObj ' + d.obj.toLowerCase() + '">' + d.obj + '</span></div>'
       + '<div class="ocBody">' + d.lore + '</div>'
       + '<div class="ocHint">▸ ' + d.hint + '</div>'
-      + (farm ? '<div class="ocHint">▸ 收容方式：靠近后长按 [F] 戴上收容头套，之后它永久失能</div>' : '')
-      + (s2 && s2.alive && !farm ? '<div class="ocBody" style="color:#8a9298">HP ' + Math.max(0, Math.round(s2.hp)) + ' / ' + s2.maxHp + '</div>' : '')
+      + (key === '096' ? '<div class="ocHint">▸ 收容方式：靠近后长按 [F] 戴上收容头套 —— 它免疫一切伤害，打不死</div>' : '')
+      + (s2 && s2.hooded ? '<div class="ocBody" style="color:#4ad8a0">状态：收容头套已就位 · 目标失能</div>' : '')
+      + (s2 && s2.alive && !d.immortal ? '<div class="ocBody" style="color:#8a9298">HP ' + Math.max(0, Math.round(s2.hp)) + ' / ' + s2.maxHp + '</div>' : '')
       + '</div>';
   }
   s += '</div>';
+  if (!farm && typeof FACTION_DEFS !== 'undefined') {
+    const dep = FACTION_STATE.ciSpawned || FACTION_STATE.handSpawned;
+    s += '<div class="opSection"><h3>入 侵 势 力 · ' + (dep ? '已突入' : '尚未出现') + '</h3>';
+    for (const id of ['ci', 'hand']) {
+      const d = FACTION_DEFS[id];
+      const on = id === 'ci' ? FACTION_STATE.ciSpawned : FACTION_STATE.handSpawned;
+      const alive = factionAlive(id);
+      s += '<div class="opCard' + (on && alive === 0 ? ' done' : '') + '">'
+        + '<div class="ocHead"><span>' + d.name + '</span><span class="ocObj">'
+        + (!on ? '未出现' : alive > 0 ? '存活 ' + alive + ' 人' : '已肃清') + '</span></div>'
+        + '<div class="ocBody">' + (id === 'ci'
+          ? '从基金会叛出的武装力量，装备精良。他们不是来收容的 —— 见到 MTF 就开火。'
+          : '信奉「异常应当自由」的地下组织。他们不打阵地战，目标是跑进收容间把异常放出来。')
+        + '</div>'
+        + '<div class="ocHint">▸ ' + (id === 'ci'
+          ? '部署时间：行动开始后 5 分钟 · 从重收电梯厅突入'
+          : '部署时间：混沌分裂者入场后 1 分钟 · 按威胁由低到高逐个放逐异常')
+        + '</div>'
+        + '</div>';
+    }
+    s += '</div>';
+  }
+  if (!farm && typeof PERSONNEL_LIST !== 'undefined' && PERSONNEL_LIST.length) {
+    const dAlive = personnelAlive('classd'), sAlive = personnelAlive('scientist'), gAlive = personnelAlive('guard');
+    s += '<div class="opSection"><h3>设 施 幸 存 人 员</h3>';
+    s += '<div class="opCard"><div class="ocHead"><span>D 级人员</span><span class="ocObj">'
+      + '在场 ' + dAlive + ' · 已逃脱 ' + GAME.classdEscaped + '</span></div>'
+      + '<div class="ocBody">混沌分裂者阵营，没有武器，只想逃出去。放他们跑到入口大堂，'
+      + '就会把设施情报带出去 —— <b>混沌分裂者提前 70 秒突入</b>。想拦住只能开枪。</div></div>';
+    s += '<div class="opCard"><div class="ocHead"><span>研究员</span><span class="ocObj">'
+      + '在场 ' + sAlive + ' · 已护送 ' + GAME.rescued.scientist + '</span></div>'
+      + '<div class="ocBody">靠到 4 米内会自动跟随。带到入口大堂撤离 → '
+      + '<b>对异常伤害 ×2（可叠加）</b>，本人转为队友驻守门口。</div></div>';
+    s += '<div class="opCard"><div class="ocHead"><span>设施保安</span><span class="ocObj">'
+      + '在场 ' + gAlive + ' · 已护送 ' + GAME.rescued.guard + '</span></div>'
+      + '<div class="ocBody">同上，护送到入口大堂撤离 → '
+      + '<b>对异常与对敌对伤害都 ×2（可叠加）</b>。</div></div>';
+    s += '<div class="opCard done"><div class="ocHead"><span>当前伤害加成</span><span class="ocObj">'
+      + '异常 ×' + GAME.bonusAnomaly + ' · 敌对 ×' + GAME.bonusHostile + '</span></div></div>';
+    s += '</div>';
+  }
   if (PHOTOS.length) {
     const left = PHOTOS.filter(p => !p.done).length;
     s += '<div class="opSection"><h3>' + (farm ? '现 场 照 片' : '收 容 档 案 照 片') + ' · ' + left + ' / ' + PHOTOS.length + ' 未销毁</h3>';
@@ -522,6 +774,7 @@ function showPauseOverlay(on) {
   if (!e) return;
   e.classList.toggle('hidden', !on);
   GAME.paused = on;
+  if (typeof AudioSys !== 'undefined' && AudioSys.setPaused) AudioSys.setPaused(on);
   if (on) {
     const s = el('pauseStats');
     if (s) {

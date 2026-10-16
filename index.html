@@ -65,6 +65,26 @@
     <div class="vRow"><span class="vLabel" id="gearLabel">NVG</span><div class="vBarWrap"><div id="nvgBar" class="vBar nvg"></div></div><span id="nvgTxt" class="vNum">100</span></div>
   </div>
 
+  <!-- SCP-079：辅助电力 / 经验 / 摄像头 -->
+  <div id="o79Panel" class="hidden">
+    <div class="o79Title">SCP-079 · 旧 AI<span id="o79Tier">TIER 1</span></div>
+    <div class="vRow"><span class="vLabel">AP</span><div class="vBarWrap"><div id="o79ApBar" class="vBar o79ap"></div></div><span id="o79ApTxt" class="vNum">100</span></div>
+    <div class="vRow"><span class="vLabel">EXP</span><div class="vBarWrap"><div id="o79ExpBar" class="vBar o79exp"></div></div><span id="o79ExpTxt" class="vNum">0</span></div>
+    <div class="o79Cam">CAM · <span id="o79CamName">—</span></div>
+    <div class="o79Stat">人类 <b id="o79Humans">0</b>　收容物 <b id="o79Scps">0</b></div>
+    <div class="o79Keys">Q/E 摄像头 · F 开关门 · R 锁门 · N 停电 · G 特斯拉 · T 广播</div>
+  </div>
+
+  <!-- 附身收容物：状态 / 击杀 -->
+  <div id="pscpPanel" class="hidden">
+    <div class="o79Title"><span id="pscpName">SCP</span><span id="pscpAtk">—</span></div>
+    <div class="vRow"><span class="vLabel">HP</span><div class="vBarWrap"><div id="pscpHpBar" class="vBar hp"></div></div><span id="pscpHpTxt" class="vNum">0</span></div>
+    <div class="o79Cam" id="pscpState">—</div>
+    <div class="o79Stat">击杀 <b id="pscpKills">0</b>　人类 <b id="pscpHumans">0</b></div>
+    <div id="pscpSound" class="pscpSound"></div>
+    <div class="o79Keys">WASD 移动 · 左键攻击</div>
+  </div>
+
   <!-- 右下：弹药 -->
   <div id="ammoPanel">
     <div id="wName">HK-416</div>
@@ -155,6 +175,7 @@
 <div id="endScreen" class="screen hidden">
   <div class="panel">
     <div id="endTitle">行 动 成 功</div>
+    <div id="endRole" style="display:none"></div>
     <div id="endSub"></div>
     <div id="endStats"></div>
     <div class="btnCol row">
@@ -244,11 +265,13 @@
     <!-- 配装 -->
     <div id="mLoadout" class="mSub hidden">
       <h2 class="mSubTitle">配 装 与 改 装</h2>
+      <div id="roleBanner" class="roleBanner" style="display:none"></div>
       <div class="loadoutWrap">
         <div class="loLeft">
           <div class="secLabel">选择行动</div>
           <div id="missionRow" class="presetRow" style="margin-bottom:8px"></div>
           <div id="missionDesc" class="gearDesc" style="margin-bottom:6px"></div>
+          <div id="loadoutCustom">
           <div class="secLabel">选择初始配装</div>
           <div id="presetRow" class="presetRow"></div>
           <div class="secLabel">护甲等级</div>
@@ -258,8 +281,9 @@
           <div id="gearDesc" class="gearDesc"></div>
           <div class="secLabel">主武器数值</div>
           <div id="statBox" class="statBox"></div>
+          </div>
         </div>
-        <div class="loRight">
+        <div class="loRight" id="loadoutRight">
           <div class="secLabel">改装工坊 · 主武器</div>
           <div id="modTabs" class="modTabs"></div>
           <div id="modList" class="modList"></div>
@@ -285,6 +309,19 @@
   </div>
 </div>
 
+<!-- 反叛之狐 · 延迟部署待命屏 -->
+<div id="stagingScreen" class="screen hidden">
+  <div class="stInner">
+    <div class="stTag">M O B I L E &nbsp; T A S K &nbsp; F O R C E</div>
+    <div class="stTitle">反 叛 之 狐</div>
+    <div class="stSub">基金会 · 九尾狐麾下</div>
+    <div class="stNote">O5 的净化令已经下达，Nu-22 正在里面执行它。<br>
+      他们说你是叛徒 —— 但你知道自己从来都不是。</div>
+    <div class="stCount"><b id="stagingN">60</b><span>秒后突入设施</span></div>
+    <div class="stHint">WASD 移动 · 左键射击 · 长按 [F] 处决 SCP-1440</div>
+  </div>
+</div>
+
 <script src="vendor/three.min.js"></script>
 <script src="js/00_core.js?v=1"></script>
 <script src="js/01_data.js?v=1"></script>
@@ -294,12 +331,18 @@
 <script src="js/05_collision.js?v=1"></script>
 <script src="js/06_facility.js?v=1"></script>
 <script src="js/06b_farm.js?v=1"></script>
+<script src="js/06c_city.js?v=1"></script>
 <script src="js/07_weapons.js?v=1"></script>
 <script src="js/08_viewmodel.js?v=1"></script>
 <script src="js/09_player.js?v=1"></script>
 <script src="js/10_scp.js?v=1"></script>
 <script src="js/11_fx.js?v=1"></script>
 <script src="js/12_ally.js?v=1"></script>
+<script src="js/12b_factions.js?v=1"></script>
+<script src="js/12c_personnel.js?v=1"></script>
+<script src="js/12d_ai079.js?v=1"></script>
+<script src="js/12e_playable_scp.js?v=1"></script>
+<script src="js/12f_scp1440.js?v=1"></script>
 <script src="js/13_hud.js?v=1"></script>
 <script src="js/14_menus.js?v=1"></script>
 <script src="js/15_main.js?v=1"></script>

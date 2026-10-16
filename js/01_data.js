@@ -22,8 +22,8 @@ const SCP_DEFS = {
   '173': {
     key: '173', name: 'SCP-173', cn: '雕像',
     obj: 'Euclid', behavior: 'blink',
-    hp: 300, speed: 13.5, radius: 0.42, height: 2.0, mass: 1.0,
-    touchRange: 1.7, touchDmg: 999, atkCd: 0.5,
+    hp: 300, speed: 11.5, radius: 0.42, height: 2.0, mass: 1.0,
+    touchRange: 1.7, touchDmg: 999, atkCd: 0.75,
     color: 0x9a9689, accent: 0x5f5a4e,
     // 关键机制：被观察时完全冻结；只有在冻结状态下才吃伤害
     freezeWhenSeen: true, immuneWhenMoving: true,
@@ -39,8 +39,10 @@ const SCP_DEFS = {
     color: 0xe8ded2, accent: 0xb9a894,
     // 未暴走时免疫一切伤害；被注视面部 0.7 秒后进入暴走
     rageTriggerTime: 0.7, immuneWhenDocile: true,
-    lore: '高约 2.6 米的苍白人形，面部被皮肤完全覆盖。平时温顺，但只要有人看见它的脸 —— 无论直接、照片还是录像 —— 它都会不惜一切代价冲向观察者。',
-    hint: '别直视它的脸 · 暴走后无法阻挡 · 佩戴 Project SCRAMBLE 可免疫面部识别',
+    // 打不死：唯一的收容方式是靠近长按 F 给它戴上收容头套
+    immortal: true, calmAfter: 25,
+    lore: '高约 2.6 米的苍白人形，面部被皮肤完全覆盖。平时温顺，但只要有人看见它的脸 —— 无论直接、照片还是录像 —— 它都会不惜一切代价冲向观察者。它的躯体无法被常规火力破坏。',
+    hint: '打不死 · 别直视它的脸 · 靠近长按 [F] 戴上收容头套即可收容 · 佩戴 Project SCRAMBLE 可免疫面部识别',
     spawnZone: 'LCZ',
   },
   '049': {
@@ -59,7 +61,7 @@ const SCP_DEFS = {
     key: '076', name: 'SCP-076-2', cn: '亚伯',
     obj: 'Keter', behavior: 'duelist',
     hp: 1100, speed: 8.4, sprintSpeed: 12.5, radius: 0.45, height: 2.15, mass: 1.1,
-    touchRange: 2.3, touchDmg: 42, atkCd: 0.85,
+    touchRange: 2.3, touchDmg: 30, atkCd: 0.9,
     color: 0x8a7358, accent: 0x3a2f22,
     reviveOnce: true, reviveDelay: 22,
     lore: '从石棺中苏醒的古代战士。体能远超人类极限，能够凭空召唤出锋利的武器。它享受战斗本身，因此不会立刻杀死你 —— 它会先陪你玩一会儿。',
@@ -81,7 +83,7 @@ const SCP_DEFS = {
     key: '682', name: 'SCP-682', cn: '不灭孽蜥',
     obj: 'Keter', behavior: 'tank',
     hp: 5200, speed: 4.6, radius: 1.15, height: 3.1, mass: 2.6,
-    touchRange: 3.0, touchDmg: 68, atkCd: 1.6,
+    touchRange: 3.0, touchDmg: 46, atkCd: 1.9,
     color: 0x3d4a34, accent: 0x8f9b62,
     roarCd: 9, acidSpit: true, acidCd: 5.5,
     lore: '体长超过六米的爬行类巨兽。它对一切生命怀有纯粹的憎恨，并且几乎无法被杀死 —— 每一次伤害都会让它适应、再生、变得更强。',
@@ -91,8 +93,8 @@ const SCP_DEFS = {
   '939': {
     key: '939', name: 'SCP-939', cn: '众声之口',
     obj: 'Keter', behavior: 'sonar',
-    hp: 780, speed: 9.2, radius: 0.6, height: 2.2, mass: 1.2,
-    touchRange: 2.4, touchDmg: 58, atkCd: 1.1,
+    hp: 620, speed: 8.4, radius: 0.6, height: 2.2, mass: 1.2,
+    touchRange: 2.4, touchDmg: 32, atkCd: 1.3,
     color: 0x7a2b2b, accent: 0xd94b4b,
     // 没有眼睛：靠声音定位；强光会造成短暂僵直
     blind: true, hearingRange: 34, lightStun: 2.2,
@@ -104,7 +106,7 @@ const SCP_DEFS = {
     key: '966', name: 'SCP-966', cn: '失眠者',
     obj: 'Euclid', behavior: 'thermal',
     hp: 460, speed: 7.4, radius: 0.42, height: 1.6, mass: 0.7,
-    touchRange: 1.8, touchDmg: 26, atkCd: 0.9,
+    touchRange: 1.8, touchDmg: 18, atkCd: 0.95,
     color: 0x6b6f73, accent: 0xb9c2c8,
     // 只在 700~900nm（红外）可见 —— 玩家必须开夜视/热成像才能看到
     onlyVisibleWithNVG: true, revealRange: 5.5,
@@ -116,12 +118,12 @@ const SCP_DEFS = {
   '3114': {
     key: '3114', name: 'SCP-3114', cn: '骸骨',
     obj: 'Euclid', behavior: 'mimic',
-    hp: 420, speed: 16.5, radius: 0.4, height: 1.6, mass: 0.5,
-    touchRange: 1.5, touchDmg: 34, atkCd: 0.45,
+    hp: 420, speed: 14.5, radius: 0.4, height: 1.6, mass: 0.5,
+    touchRange: 1.5, touchDmg: 22, atkCd: 0.6,
     color: 0xded6c2, accent: 0x8d8574,
-    grabDps: 46, grabRange: 1.5,
-    lore: '一具能够自主活动的完整人体骨架，最高脚程 60 公里每小时。它极度渴望人类的形体 —— 抓住猎物后，它会挖出对方的骨骼，再把自己塞进剩下的皮肉里。',
-    hint: '速度极快 · 会伪装成地上的尸体',
+    grabDps: 28, grabRange: 1.5,
+    lore: '一具能够自主活动的完整人体骨架，最高脚程 60 公里每小时。它极度渴望人类的形体 —— 抓住猎物后，它会挖出对方的骨骼，再把自己塞进剩下的皮肉里。它会把受害者的皮肉披在身上，顶着那张脸在设施里走动。',
+    hint: '速度极快 · 会伪装成设施人员、混沌分裂者、蛇之手甚至 MTF —— 靠近才会露馅',
     spawnZone: 'HCZ',
   },
 };
@@ -175,6 +177,32 @@ const WPN_DEFS = {
     recoil: 2.1, recSide: 0.7, kick: 0.13, adsFov: 62, adsTime: 0.24, snd: 'shotgun',
     tracer: 1, mobility: 0.88, pen: 0.05,
     slots: ['optic', 'muzzle', 'laser', 'stock'],
+  },
+  /* ---- 设施里散落的"补给武器"：给没枪的 Class-D / 科学家 / 保安捡 ----
+     三把都是 MTF 制式装备之外的常见货，射速/伤害各有取舍。 */
+  ump45: {
+    id: 'ump45', name: 'UMP-45', full: 'HK UMP-45 冲锋枪', cls: '冲锋枪', ammoType: '.45 ACP',
+    mode: 'auto', modeName: '全自动', dmg: 27, headMul: 1.9, rpm: 600, mag: 25, reserve: 200,
+    reload: 2.30, reloadEmpty: 3.00, spreadHip: 2.4, spreadAds: 0.38, spreadMove: 1.3,
+    recoil: 0.50, recSide: 0.33, kick: 0.042, adsFov: 58, adsTime: 0.19, snd: 'smg',
+    tracer: 3, mobility: 0.97, pen: 0.34,
+    slots: ['optic', 'muzzle', 'grip', 'mag', 'laser', 'stock'],
+  },
+  mp7: {
+    id: 'mp7', name: 'MP7', full: 'HK MP7 冲锋手枪', cls: '冲锋枪', ammoType: '4.6×30mm',
+    mode: 'auto', modeName: '全自动', dmg: 17, headMul: 1.7, rpm: 950, mag: 40, reserve: 320,
+    reload: 1.95, reloadEmpty: 2.60, spreadHip: 2.7, spreadAds: 0.52, spreadMove: 1.4,
+    recoil: 0.34, recSide: 0.26, kick: 0.030, adsFov: 60, adsTime: 0.15, snd: 'smg',
+    tracer: 5, mobility: 1.06, pen: 0.26,
+    slots: ['optic', 'muzzle', 'grip', 'mag', 'laser', 'stock'],
+  },
+  glock17: {
+    id: 'glock17', name: 'Glock-17', full: '格洛克 17 半自动手枪', cls: '手枪', ammoType: '9×19mm',
+    mode: 'semi', modeName: '半自动', dmg: 26, headMul: 2.0, rpm: 400, mag: 17, reserve: 170,
+    reload: 1.70, reloadEmpty: 2.25, spreadHip: 2.6, spreadAds: 0.55, spreadMove: 1.4,
+    recoil: 0.52, recSide: 0.34, kick: 0.036, adsFov: 62, adsTime: 0.13, snd: 'pistol',
+    tracer: 3, mobility: 1.14, pen: 0.18, pistol: true,
+    slots: ['optic', 'muzzle', 'mag', 'laser'],
   },
 };
 
@@ -272,9 +300,9 @@ const MOD_CHOICES = {
    --------------------------------------------------------------------- */
 const ARMOR_DEFS = [
   { id: 0, name: '无护甲', resist: 0.00, hp: 0, mobility: 1.00 },
-  { id: 1, name: 'III-A 软质防弹衣', resist: 0.18, hp: 120, mobility: 0.99 },
-  { id: 2, name: 'III 级战术背心', resist: 0.30, hp: 240, mobility: 0.96 },
-  { id: 3, name: 'IV 级重型装甲', resist: 0.42, hp: 400, mobility: 0.90 },
+  { id: 1, name: 'III-A 软质防弹衣', resist: 0.24, hp: 120, mobility: 0.99 },
+  { id: 2, name: 'III 级战术背心', resist: 0.36, hp: 240, mobility: 0.96 },
+  { id: 3, name: 'IV 级重型装甲', resist: 0.48, hp: 400, mobility: 0.90 },
 ];
 
 /* ---------------------------------------------------------------------
@@ -314,8 +342,36 @@ const MISSIONS = {
     desc: '一次摄影事故之后，SCP-096 脱离收容，最终停在加州一处偏远农场。'
       + 'Nu-7「落锤」被部署到现场：给它套上收容头套，并销毁所有拍到它面部的照片。',
   },
+  fivek: {
+    id: 'fivek', name: '5K 行 动', sub: 'NU-22「火箭侠」· 净化程序',
+    map: 'facility', tag: '设施 · 全员敌对 · 守护目标',
+    desc: 'O5 已经下令。Nu-22「火箭侠」带着 SCP-1440 抵达站点 —— '
+      + '你的任务不是收容，而是把它留在这里五分钟 —— 足够久到反叛之狐赶来阻止你。'
+      + '站点里的每一个人都会阻止你，而 1440 会替你完成剩下的事。',
+  },
+  city: {
+    id: 'city', name: '净 化 行 动', sub: 'BETA-7「疯帽匠」· 市区疫区',
+    map: 'city', tag: '市区 · 感染扩散 · 清剿',
+    desc: 'SCP-049 的"瘟疫"在市区里扩散开了。街上到处是被感染的市民 —— '
+      + '它们已经不再是人。Beta-7「疯帽匠」被派进来：'
+      + '关掉三处感染源，把剩下的清理干净，然后撤离。',
+  },
 };
-const MISSION_ORDER = ['breach', 'contain096'];
+const MISSION_ORDER = ['breach', 'contain096', 'fivek', 'city'];
+
+/* 5K 行动的目标链 */
+const OBJECTIVES_FIVEK = [
+  {
+    id: 'hold', title: '让 SCP-1440 在站点停留 5 分钟', short: '滞留',
+    desc: '待在它附近 —— 只有你在场，它的异常性质才会持续侵蚀这个站点。',
+    detail: '15 米内计时推进，离开后计时缓慢回退。Nu-22 成员免疫 1440 的影响，站点里的人不免疫。',
+  },
+  {
+    id: 'survive', title: '活着撑到净化完成', short: '生存',
+    desc: '站点守备与设施人员全部与你敌对。',
+    detail: '没有支援。靠 1440 替你清理靠得太近的人。',
+  },
+];
 
 /* 收容行动的目标链 */
 const OBJECTIVES_CONTAIN096 = [
@@ -344,6 +400,26 @@ const OBJECTIVES_CONTAIN096 = [
 /* ---------------------------------------------------------------------
    关卡目标链（落锤行动）
    --------------------------------------------------------------------- */
+/* 净化行动（市区）的目标链 */
+const OBJECTIVES_CITY = [
+  {
+    id: 'source', title: '关闭感染源', short: '感染源',
+    desc: '市区里有三处异常疾病的源头。走近按住 [F] 关掉它们 —— '
+      + '只要还有一处没关，感染就会继续扩散。',
+    detail: '感染源会持续把附近的市民变成被感染者，越拖场上的人越多。',
+  },
+  {
+    id: 'purge_infected', title: '清除全部被感染者', short: '清剿',
+    desc: '把街上游荡的被感染者全部清除。',
+    detail: '它们跑得不快，但会成片扑上来 —— 别被围住。',
+  },
+  {
+    id: 'extract', title: '撤离', short: '撤离',
+    desc: '回到北端街口的直升机，按住 [F] 撤离。',
+    detail: '感染源全关、场上没有活着的被感染者之后，直升机才会起飞。',
+  },
+];
+
 const OBJECTIVES = [
   {
     id: 'power', title: '恢复供电', short: '电力',
@@ -363,12 +439,49 @@ const OBJECTIVES = [
   {
     id: 'purge', title: '清剿 / 收容', short: '清剿',
     desc: '设施内 9 只 SCP 全部脱离收容。逐一压制，直至收容协议确认完成。',
-    detail: 'SCP-173 需保持注视才能造成伤害；SCP-096 暴走后才能被击伤；SCP-966 需开启夜视。',
+    detail: 'SCP-173 需保持注视才能造成伤害；SCP-096 免疫一切伤害，只能靠近长按 [F] 给它戴上收容头套；SCP-966 需开启夜视。',
+  },
+  {
+    id: 'invaders', title: '清除入侵势力', short: '入侵',
+    desc: '混沌分裂者与蛇之手会先后突入设施。击毙他们，否则蛇之手会不断把已收容异常放出来。',
+    detail: '混沌分裂者在行动开始 5 分钟后从重收电梯厅突入；蛇之手 1 分钟后跟进，按威胁由低到高逐个放逐异常（先 173 / 966，最后 682）。',
+  },
+  {
+    id: 'hunt', title: '清除基金会人员', short: '清剿',
+    desc: '把设施里的 MTF、保安、科学家全部干掉 —— 你是回来抢东西的。',
+    detail: '基金会的人见到你就会开火。先下手为强。',
   },
   {
     id: 'extract', title: '撤离', short: '撤离',
     desc: '回到办公区入口大堂的地表电梯，按住 F 撤离。',
-    detail: '清剿与档案销毁都完成之后，撤离电梯才会解锁。',
+    detail: '清剿、档案销毁与入侵势力清除都完成之后，撤离电梯才会解锁。',
+  },
+];
+
+/* 反叛之狐的目标链（仅 5K 行动） */
+const OBJECTIVES_REBEL = [
+  {
+    id: 'kill1440', title: '处决 SCP-1440', short: '处决',
+    desc: '它是这场"净化"的核心。走近它，长按 F 执行处决程序 —— 子弹对它没有意义。',
+    detail: '处决需要 6 秒引导，期间你动不了。Nu-22 会全力阻止你。',
+  },
+  {
+    id: 'killNu22', title: '清除 Nu-22「火箭侠」', short: '清除',
+    desc: '执行净化令的那支特遣队。他们不受 1440 影响，所以只能靠子弹解决。',
+    detail: '四名 Nu-22 成员全部清除即完成。',
+  },
+];
+/* SCP-079 / 附身收容物共用的目标链 */
+const OBJECTIVES_O79 = [
+  {
+    id: 'ai_kill', title: '清除设施内全部人类', short: '清场',
+    desc: '把队友、保安、研究员、D 级、入侵者 —— 全部送进 SCP 嘴里。',
+    detail: '你没有武器。门、停电封锁和特斯拉门过充是你的武器。',
+  },
+  {
+    id: 'ai_survive', title: '保住其他收容物', short: '保全',
+    desc: '其他 SCP 全部被清空时，你的重新收容程序会自动启动。',
+    detail: '它们是你唯一的手 —— 别让 MTF 把它们一个个清掉。',
   },
 ];
 
@@ -402,12 +515,25 @@ const BREAKER_ROOMS = { A: 'EZ-SEC', B: 'LCZ-LAB', C: 'HCZ-ELECTRO' };
    --------------------------------------------------------------------- */
 const PICKUP_TYPES = {
   ammo_rifle: { name: '5.56mm 弹药箱', kind: 'ammo', for: ['hk416', 'm249'], amount: 0.5, color: 0xc8a24a },
-  ammo_smg: { name: '9mm 弹药盒', kind: 'ammo', for: ['mp5', 'glock18'], amount: 0.5, color: 0xb8b06a },
+  ammo_smg: { name: '9mm 弹药盒', kind: 'ammo', for: ['mp5', 'glock18', 'glock17'], amount: 0.5, color: 0xb8b06a },
+  ammo_45: { name: '.45 ACP 弹药盒', kind: 'ammo', for: ['ump45'], amount: 0.6, color: 0xc09a5a },
+  ammo_46: { name: '4.6mm 弹药盒', kind: 'ammo', for: ['mp7'], amount: 0.6, color: 0xa8b878 },
   medkit: { name: '医疗包', kind: 'heal', amount: 55, color: 0xd44b4b },
   bandage: { name: '止血绷带', kind: 'heal', amount: 22, color: 0xd8d0c0 },
   armor_plate: { name: '防弹插板', kind: 'armor', amount: 60, color: 0x6a7a8a },
   battery: { name: '装置电池', kind: 'battery', amount: 40, color: 0x5ad4a0 },
+  // ---- 散落的补给武器（只给没枪的阵营捡）----
+  wpn_ump45: { name: 'UMP-45', kind: 'weapon', wpn: 'ump45', color: 0x8a7a5a },
+  wpn_mp7: { name: 'MP7', kind: 'weapon', wpn: 'mp7', color: 0x6a7a6a },
+  wpn_glock17: { name: 'Glock-17', kind: 'weapon', wpn: 'glock17', color: 0x5a5a62 },
 };
+
+/* 哪些角色可以捡地上的武器。
+   只有"没枪或只有手枪"的阵营需要 —— MTF / 第二身份 / 收容物都不参与。 */
+function canPickWeapons() {
+  const r = (typeof currentRole === 'function') ? currentRole() : null;
+  return !!(r && r.canPickWeapons) && !player.isAI && !player.isSCP;
+}
 
 /* ---------------------------------------------------------------------
    设施广播台词
@@ -432,9 +558,324 @@ const BROADCASTS = {
 
 bootMark('data');
 
+/* ---------------------------------------------------------------------
+   开局角色（还原 RXSEND 的随机阵营机制）
+   每局开始随机分配一个角色，装备、出生点和目标链都不同。
+   · loadout:'custom' —— 用玩家在配装界面自己选的（只有 MTF 有这待遇）
+   · loadout:'fixed'  —— 用角色自带的固定配装
+   · loadout:'none'   —— 什么都没有
+   --------------------------------------------------------------------- */
+const ROLE_DEFS = {
+  mtf: {
+    id: 'mtf', name: '机动特遣队 Nu-7', short: 'Nu-7', weight: 30,
+    faction: '基金会 · 机动特遣队', side: 'foundation',
+    desc: '全副武装的收容恢复力量 —— 唯一有资格和异常正面交手的角色。',
+    goal: '恢复设施 → 收容全部异常 → 清除入侵势力 → 撤离。',
+    loadout: 'custom', primary: null, secondary: null, armor: 2, gear: 'scramble',
+    spawn: null, objectives: 'all',
+  },
+  guard: {
+    id: 'guard', name: '设施保安', short: '保安', weight: 25,
+    faction: '基金会 · 安保部门', side: 'foundation',
+    desc: '设施的秩序维护力量。有一把手枪和轻质防弹衣 —— 但挡不住收容物。',
+    goal: '恢复供电 → 启动收容协议 → 活着走到地表电梯。',
+    loadout: 'fixed', primary: null, secondary: 'glock18', armor: 1, gear: 'none',
+    spawn: 'EZ-SEC', objectives: ['power', 'protocol', 'extract'], canPickWeapons: true,
+  },
+  scientist: {
+    id: 'scientist', name: '科学家', short: '科学家', weight: 25,
+    faction: '基金会 · 研究部门', side: 'foundation',
+    desc: '没有武器，也没有护甲。你比设施里的任何一个东西都脆弱。',
+    goal: '销毁泄漏的收容档案 → 活着走到地表电梯。',
+    loadout: 'none', primary: null, secondary: null, armor: 0, gear: 'none',
+    spawn: 'LCZ-LAB', objectives: ['photos', 'extract'], canPickWeapons: true,
+  },
+  classd: {
+    id: 'classd', name: 'Class-D', short: 'D 级', weight: 20,
+    faction: 'D 级人员', side: 'ci',
+    desc: '你什么都没有 —— 没有武器、没有护甲、没有权限，也没有人在乎你。',
+    goal: '找到出口。活下去。仅此而已。',
+    loadout: 'none', primary: null, secondary: null, armor: 0, gear: 'none',
+    spawn: 'EZ-OFFICE', objectives: ['extract'], canPickWeapons: true,
+  },
+  o79: {
+    id: 'o79', name: 'SCP-079「旧 AI」', short: '079', weight: 7,
+    faction: 'SCP · 收容物', side: 'scp',
+    desc: '设施的主控 AI。你没有身体、没有血量，也没有武器 —— 你只有摄像头和电。',
+    goal: '操纵门、电与特斯拉门，帮其他 SCP 把人类全部清除。',
+    loadout: 'none', primary: null, secondary: null, armor: 0, gear: 'none',
+    spawn: null, objectives: 'scp', ai: true,
+  },
+
+  /* ---- 可操控的实体收容物：直接附身在设施里那只 SCP 身上 ---- */
+  p173: {
+    id: 'p173', name: 'SCP-173', short: '173', weight: 7,
+    faction: 'SCP · 收容物', side: 'scp', playable: true, scpKey: '173',
+    desc: '混凝土与钢筋构成的雕像。只要有人看着你，你就一步也动不了。',
+    goal: '趁他们眨眼的那一瞬间靠近，拧断他们的脖子。',
+    loadout: 'none', primary: null, secondary: null, armor: 0, gear: 'none',
+    spawn: null, objectives: 'scp',
+  },
+  p096: {
+    id: 'p096', name: 'SCP-096', short: '096', weight: 7,
+    faction: 'SCP · 收容物', side: 'scp', playable: true, scpKey: '096',
+    desc: '你平时很温顺。但只要有人看见你的脸 —— 无论是直接看还是看照片 —— 你就再也停不下来。',
+    goal: '谁看了你的脸，就冲向谁。',
+    loadout: 'none', primary: null, secondary: null, armor: 0, gear: 'none',
+    spawn: null, objectives: 'scp',
+  },
+  p939: {
+    id: 'p939', name: 'SCP-939', short: '939', weight: 5,
+    faction: 'SCP · 收容物', side: 'scp', playable: true, scpKey: '939',
+    desc: '你没有眼睛，靠声音捕猎。凡是会动、会开枪、会喘气的东西，都会在你的视野里亮起来。',
+    goal: '循着声音找过去，一口咬断。',
+    loadout: 'none', primary: null, secondary: null, armor: 0, gear: 'none',
+    spawn: null, objectives: 'scp',
+  },
+  p106: {
+    id: 'p106', name: 'SCP-106', short: '106', weight: 5,
+    faction: 'SCP · 收容物', side: 'scp', playable: true, scpKey: '106',
+    desc: '腐烂的老者。墙对你来说只是空气 —— 你从里面穿过去，留下一条腐蚀的痕迹。',
+    goal: '穿过墙，把撞上你的人一个一个拖走。',
+    loadout: 'none', primary: null, secondary: null, armor: 0, gear: 'none',
+    spawn: null, objectives: 'scp',
+  },
+  p049: {
+    id: 'p049', name: 'SCP-049', short: '049', weight: 3,
+    faction: 'SCP · 收容物', side: 'scp', playable: true, scpKey: '049',
+    desc: '瘟疫医生。你走得很慢，但你碰到的每一个人都会成为你的"病人" —— 而倒下的尸体还会重新站起来替你干活。',
+    goal: '把设施里的人全部"治愈"。',
+    loadout: 'none', primary: null, secondary: null, armor: 0, gear: 'none',
+    spawn: null, objectives: 'scp',
+  },
+  p3114: {
+    id: 'p3114', name: 'SCP-3114', short: '3114', weight: 3,
+    faction: 'SCP · 收容物', side: 'scp', playable: true, scpKey: '3114',
+    desc: '一具会奔跑的人体骨架。你比设施里任何东西都快 —— 追上去，把他们的皮肉据为己有。',
+    goal: '追上每一个还在跑的人。',
+    loadout: 'none', primary: null, secondary: null, armor: 0, gear: 'none',
+    spawn: null, objectives: 'scp',
+  },
+  p076: {
+    id: 'p076', name: 'SCP-076-2', short: '076-2', weight: 2,
+    faction: 'SCP · 收容物', side: 'scp', playable: true, scpKey: '076',
+    desc: '从石棺中苏醒的古代战士。你享受战斗本身 —— 而且倒下一次，并不代表结束。',
+    goal: '把设施里的人杀光。你还有一次站起来的机会。',
+    loadout: 'none', primary: null, secondary: null, armor: 0, gear: 'none',
+    spawn: null, objectives: 'scp',
+  },
+  p682: {
+    id: 'p682', name: 'SCP-682', short: '682', weight: 2,
+    faction: 'SCP · 收容物', side: 'scp', playable: true, scpKey: '682',
+    desc: '不灭的巨蜥。你对一切生命怀有纯粹的憎恨，而你的酸液会替你把这份憎恨浇到他们身上。',
+    goal: '碾平设施里所有会动的东西。',
+    loadout: 'none', primary: null, secondary: null, armor: 0, gear: 'none',
+    spawn: null, objectives: 'scp',
+  },
+
+  /* ---- 5K 行动：Nu-22「火箭侠」（固定角色，不进随机池）---- */
+  nu22: {
+    id: 'nu22', name: 'MTF Nu-22「火箭侠」', short: 'Nu-22', weight: 0,
+    faction: '基金会 · Nu-22', side: 'nu22',
+    desc: '为加速"清理"而组建的特遣队。小队成员都免疫 SCP-1440 的影响 —— 所以你才能把它带进来。',
+    goal: '让 SCP-1440 在站点停留 5 分钟。',
+    loadout: 'fixed', primary: 'hk416', secondary: 'glock18', armor: 3, gear: 'nvg',
+    spawn: 'EZ-LOBBY', objectives: 'fivek',
+  },
+
+  /* ---- 5K 行动专属：反叛之狐（拒绝执行"净化令"的那一支）---- */
+  rebel: {
+    id: 'rebel', name: '反叛之狐', short: '反叛之狐', weight: 20,
+    faction: '基金会 · 九尾狐麾下', side: 'mtf',
+    missions: ['fivek'],
+    desc: '九尾狐麾下的收容精锐。O5 的"净化令"下来之后，你是唯一拒绝执行的那一支 —— '
+      + '他们说你是叛徒，但你知道自己从来都不是。',
+    goal: '处决 SCP-1440，并清除执行净化令的 Nu-22。',
+    loadout: 'fixed', primary: 'hk416', secondary: 'glock18', armor: 2, gear: 'scramble',
+    // ⚠️ 复活点必须和 Nu-22 分开：Nu-22 从入口大堂突入，
+    //    反叛之狐从安保站进来 —— 否则刚落地就被小队集火。
+    spawn: 'EZ-SEC', objectives: 'rebel',
+  },
+
+  /* ---- 净化行动专属：Beta-7「疯帽匠」（生化 / 危险物质处理特遣队）---- */
+  beta7: {
+    id: 'beta7', name: 'MTF Beta-7「疯帽匠」', short: 'Beta-7', weight: 1,
+    faction: '基金会 · 机动特遣队', side: 'foundation',
+    missions: ['city'],
+    desc: '专精生化与危险物质处理的特遣队。城里那场"瘟疫"扩散得太快了 —— '
+      + '上面把你们整队扔了进来，要求只有一个：清干净。',
+    goal: '关闭三处感染源，清除全部被感染者，然后撤离。',
+    loadout: 'fixed', primary: 'hk416', secondary: 'glock18', armor: 3, gear: 'nvg',
+    spawn: null, objectives: 'city',
+  },
+
+  /* ---- 第二身份：撤离后重新部署，不进随机池 ---- */
+  ci: {
+    id: 'ci', name: '混沌分裂者', short: 'CI', weight: 0,
+    faction: '混沌分裂者', side: 'ci', second: true,
+    desc: '你带着 Class-D 带出来的情报回来了 —— 这次你是来抢东西的。',
+    goal: '清除设施内的基金会人员，然后撤离。',
+    loadout: 'fixed', primary: 'mp5', secondary: 'glock18', armor: 2, gear: 'nvg',
+    spawn: 'EZ-LOBBY', objectives: ['hunt', 'extract'],
+  },
+  mtf_spec: {
+    id: 'mtf_spec', name: 'Nu-7 收容专家', short: '收容专家', weight: 0,
+    faction: '基金会 · 机动特遣队', side: 'foundation', second: true,
+    desc: '你从地表回来了，带着完整的收容权限和一套 HID 接口。',
+    goal: '把设施里剩下的收容物全部处理掉，然后撤离。',
+    loadout: 'fixed', primary: 'hk416', secondary: 'glock18', armor: 2, gear: 'scramble',
+    spawn: 'EZ-LOBBY', objectives: ['purge', 'extract'],
+  },
+  mtf_assault: {
+    id: 'mtf_assault', name: 'Nu-7 突击兵', short: '突击兵', weight: 0,
+    faction: '基金会 · 机动特遣队', side: 'foundation', second: true,
+    desc: '你从地表回来了，扛的是破门和清场用的家伙。',
+    goal: '清剿剩余收容物、清除入侵势力，然后撤离。',
+    loadout: 'fixed', primary: 'spas12', secondary: 'glock18', armor: 3, gear: 'nvg',
+    spawn: 'EZ-LOBBY', objectives: ['purge', 'invaders', 'extract'],
+  },
+  /* ---- 第二身份：收容物被压制后，蛇之手把你"接"了过去 ---- */
+  hand: {
+    id: 'hand', name: '蛇之手', short: '蛇之手', weight: 0,
+    faction: '蛇之手', side: 'hand', second: true,
+    desc: '你被他们从收容间里放了出来 —— 现在你和他们站在一起。',
+    goal: '清除设施里的基金会人员，然后撤离。',
+    loadout: 'fixed', primary: 'mp5', secondary: 'glock18', armor: 1, gear: 'nvg',
+    spawn: 'EZ-LOBBY', objectives: ['hunt', 'extract'],
+  },
+};
+
+/* 撤离后转成的第二身份（类似 RXSEND / SL 的阵营重部署） */
+const SECOND_LIFE = { classd: 'ci', scientist: 'mtf_spec', guard: 'mtf_assault' };
+
+/* ---------------------------------------------------------------------
+   部署后的「重生」：倒下就换个身份接着打（保留当前进度）。
+   ⚠️ 复活是**无限次**的：第一次倒下按这张表换身份，之后再倒下保持当前身份原地复活。
+   ⚠️ 和上面的 SECOND_LIFE 是两套：那个走"成功撤离转职"，这个走"被击倒"。
+   --------------------------------------------------------------------- */
+const REBIRTH = {
+  breach: {
+    mtf: 'mtf',                 // MTF：原地重新部署，装备与目标链都不变
+    guard: 'mtf_assault',       // 保安 → Nu-7 突击兵
+    scientist: 'mtf_spec',      // 科学家 → Nu-7 收容专家
+    classd: 'ci',               // Class-D → 混沌分裂者
+    // 收容物被压制 → 蛇之手把你接了过去
+    o79: 'hand', p173: 'hand', p096: 'hand', p939: 'hand', p106: 'hand',
+  },
+};
+/* 5K 只覆盖三条：科学家 → Nu-22 编制位（mtf），保安 → 反叛之狐，
+   反叛之狐 → 保持自己（和 MTF 一样原地重新部署）。
+   其余（异常 → 蛇之手、Class-D → CI、MTF → 保持）沿用常规表。
+   ⚠️ rebel 这条不能漏 —— 漏了它就只能走 endGame 结算，进度全清、只能重开，
+      而重开抽到反叛之狐又要从头等 60 秒待命。 */
+const REBIRTH_FIVEK = Object.assign({}, REBIRTH.breach, {
+  guard: 'rebel',
+  scientist: 'mtf',
+  rebel: 'rebel',
+});
+
+/* 当前身份重生成什么。
+   ⚠️ 复活是**无限次**的：第一次倒下按映射换身份（Class-D → CI 之类），
+      之后再倒下就保持当前身份原地复活 —— 所以这里永远返回一个合法 id，
+      映射表里没有的身份（ci / hand / mtf_spec / mtf_assault）就返回它自己。 */
+function rebirthRoleFor(roleId) {
+  const id = roleId || (GAME && GAME.role) || 'mtf';
+  const table = (GAME && GAME.mission === 'fivek') ? REBIRTH_FIVEK : REBIRTH.breach;
+  return table[id] || id;
+}
+
+const ROLE_ORDER = ['mtf', 'guard', 'scientist', 'classd', 'o79',
+  'p173', 'p096', 'p939', 'p106', 'p049', 'p3114', 'p076', 'p682', 'rebel'];
+
+/* 各行动的随机池：没写 missions 的角色在所有行动里都可能抽到；
+   写了 missions 的只在该行动出现（反叛之狐只存在于 5K）。 */
+function rollPoolFor(mission) {
+  const m = mission || (GAME && GAME.mission) || 'breach';
+  // 净化行动是 Beta-7「疯帽匠」的既定任务 —— 不参与随机分配。
+  // （不能只靠 ROLE_DEFS 的 missions 字段：没写 missions 的角色默认"所有行动都能抽到"，
+  //   那样城市里会冒出 MTF / 保安 / 科学家。）
+  if (m === 'city') return ['beta7'];
+  return ROLE_ORDER.filter(k => {
+    const r = ROLE_DEFS[k];
+    if (!r) return false;
+    if (!r.missions) return true;
+    return r.missions.indexOf(m) >= 0;
+  });
+}
+
+// 是不是"收容物阵营"的可玩角色（079 是 AI，其余是附身实体）
+function isScpRole(role) {
+  const r = role || (typeof currentRole === 'function' ? currentRole() : null);
+  return !!(r && r.side === 'scp');
+}
+
+// 当前角色（默认 MTF；startGame 之前由 rollRole() 决定）
+function currentRole() {
+  return ROLE_DEFS[(GAME && GAME.role) || 'mtf'] || ROLE_DEFS.mtf;
+}
+
+/* 5K 行动里，「MTF Nu-7」这个编制位就是 Nu-22「火箭侠」——
+   同一支特遣队，只是这次的任务是"净化"而不是"收容"，所以换了个代号。
+   ⚠️ 不是把玩家固定成 Nu-22：随机分配照常进行，只是抽到 MTF 时换一层皮。 */
+const FIVEK_MTF_VIEW = {
+  name: 'MTF Nu-22「火箭侠」', short: 'Nu-22',
+  faction: '基金会 · Nu-22',
+  desc: '为加速"清理"而组建的特遣队。小队成员都免疫 SCP-1440 的影响 —— 所以你才能把它带进来。',
+  goal: '守住 SCP-1440，让它在站点停留 5 分钟。',
+};
+
+/* 这一局该怎么"称呼"这个身份（只影响显示，不影响数值） */
+function roleView(role) {
+  const r = role || currentRole();
+  if (!r) return null;
+  if (GAME && GAME.mission === 'fivek' && r.id === 'mtf') return Object.assign({}, r, FIVEK_MTF_VIEW);
+  return r;
+}
+
+// 按权重随机抽一个角色（只从当前行动的池子里抽）
+function rollRole() {
+  const pool = (typeof rollPoolFor === 'function') ? rollPoolFor() : ROLE_ORDER;
+  let total = 0;
+  for (const k of pool) total += ROLE_DEFS[k].weight;
+  let r = Math.random() * total;
+  for (const k of pool) {
+    r -= ROLE_DEFS[k].weight;
+    if (r <= 0) return k;
+  }
+  return 'mtf';
+}
+
+/* URL 上可以写 ?role=mtf|guard|scientist|classd 指定角色。
+   既是自检用的固定入口，也给不想被随机支配的玩家留个口子。 */
+function forcedRoleFromURL() {
+  try {
+    const m = /[?&]role=([a-z0-9]+)/i.exec(location.search);
+    if (m) {
+      const k = m[1].toLowerCase();
+      if (ROLE_DEFS[k]) return k;
+    }
+  } catch (e) { }
+  return null;
+}
+
 // 当前行动的目标链
 function currentObjectives() {
-  return (GAME && GAME.mission === 'contain096') ? OBJECTIVES_CONTAIN096 : OBJECTIVES;
+  if (GAME && GAME.mission === 'contain096') return OBJECTIVES_CONTAIN096;
+  if (GAME && GAME.mission === 'city') return OBJECTIVES_CITY;
+  if (GAME && GAME.mission === 'fivek') {
+    const id = (typeof roleView === 'function' && roleView()) ? roleView().id : null;
+    // 5K 里反叛之狐的目标和 Nu-22 完全相反
+    if (id === 'rebel') return OBJECTIVES_REBEL;
+    // 蛇之手（由异常重生而来）：5K 没有撤离点，目标只有"清空基金会人员" ——
+    // 否则会挂上一个永远做不了的「撤离」
+    if (id === 'hand') return OBJECTIVES.filter(o => o.id === 'hunt');
+    return OBJECTIVES_FIVEK;
+  }
+  const role = currentRole();
+  if (role.objectives === 'all') return OBJECTIVES;
+  if (role.objectives === 'scp') return OBJECTIVES_O79;
+  if (role.objectives === 'rebel') return OBJECTIVES_REBEL;
+  return OBJECTIVES.filter(o => role.objectives.indexOf(o.id) >= 0);
 }
 function currentMission() {
   return MISSIONS[(GAME && GAME.mission) || 'breach'] || MISSIONS.breach;

@@ -123,7 +123,7 @@ class CDP {
     await cdp.send('Log.enable');
     await cdp.send('Page.enable');
 
-    const nav = await cdp.send('Page.navigate', { url: 'http://127.0.0.1:' + PORT + '/index.html?nopause=1' });
+    const nav = await cdp.send('Page.navigate', { url: 'http://127.0.0.1:' + PORT + '/index.html?nopause=1&role=mtf' });
     await new Promise(r => setTimeout(r, 3500));
 
     // 收集控制台错误
@@ -314,6 +314,9 @@ class CDP {
     console.log('SCRAMBLE 装备:', JSON.stringify(sc1));
     await wait(1600);
     // ---------- NPC 过门测试：玩家放远，门只能被 NPC 自己触发 ----------
+    // ⚠️ MTF 队友现在要开局 1 分钟后才进场，先把他们叫出来
+    await cdp.eval(`(function(){ if (!GAME.mtfDeployed) { GAME.elapsed = 61; checkMtfDeploy(); } return ALLY_LIST.length; })()`);
+    await wait(700);
     const doorSetup = await cdp.eval(`(function(){
       const d = FAC.doors.find(x => x.room && x.room.id === 'LCZ-LAB') || FAC.doors[0];
       DEBUG.god = true;
@@ -532,18 +535,23 @@ class CDP {
       player.hp = player.maxHp;
     })()`);
 
-    // 击杀所有 SCP，检查结算路径（173 需先置为"被观察"，076 需二次击杀）
+    // 清剿所有 SCP，检查结算路径
+    // （173 需先置为"被观察"，076 需二次击杀；096 免疫一切伤害，必须走戴头套收容）
     const kill = await cdp.eval(`(function(){
-      let n=0;
+      let n=0, hooded=0;
       for(let pass=0; pass<3; pass++){
         for(const s of SCP_LIST){
           if(!s.alive) continue;
+          if(s.def && s.def.immortal){          // SCP-096：打不死，只能戴头套
+            if(!s.hooded){ s.enraged=false; s.rageT=0; hoodSCP096(); hooded++; }
+            continue;
+          }
           s.enraged=true; s.observed=true; s.hp=1;
           damageSCP(s, 9999, {byPlayer:true, head:true, from:player});
           n++;
         }
       }
-      return {attempts:n, contained:Object.keys(GAME.contained).length, st:objectiveStatus()};
+      return {attempts:n, 戴头套收容:hooded, contained:Object.keys(GAME.contained).length, st:objectiveStatus()};
     })()`);
     console.log('清剿测试:', JSON.stringify(kill));
 

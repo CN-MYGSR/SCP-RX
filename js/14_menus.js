@@ -79,7 +79,9 @@ function initMenus() {
 
   // 暂停菜单
   el('pResume').addEventListener('click', () => { AudioSys.uiBack(); showPauseOverlay(false); requestLock(); });
-  el('pAbort').addEventListener('click', () => { AudioSys.uiBack(); showPauseOverlay(false); endGame(false, '行动中止'); });
+  // ⚠️ 放弃行动要 skipRebirth：复活是无限次的，不跳过的话点"放弃"会被立刻重新部署，
+  //    玩家永远退不出这一局。
+  el('pAbort').addEventListener('click', () => { AudioSys.uiBack(); showPauseOverlay(false); endGame(false, '行动中止', true); });
   el('pSettings').addEventListener('click', () => { AudioSys.uiClick(); toast('设置请返回主菜单调整', 2200, 'warn'); });
 
   // 结算
@@ -137,7 +139,11 @@ function renderBrief() {
     + '重收武器库缴获物箱 / 仓库 A 木箱上，逐一长按 [F] 划掉。'
     + '<b>盯着照片看超过 3 秒会把 SCP-096「看」暴走。</b></div>'
     + '<div>4. <b>清剿 / 收容</b>：9 只收容物必须全部停止活动。注意每一只都有自己的弱点。</div>'
-    + '<div>5. <b>撤离</b>：清剿与档案销毁都完成后，回到入口大堂的地表电梯，长按 [F] 升井。</div>'
+    + '<div>5. <b>清除入侵势力</b>：行动开始 <b>5 分钟</b>后<b>混沌分裂者</b>从重收电梯厅突入（5 人，见到 MTF 就开火）；'
+    + '<b>1 分钟</b>后<b>蛇之手</b>跟进（3 人），他们会跑到已收容异常的收容间，'
+    + '按威胁等级<b>从低到高</b>把异常重新放出来 —— 先 173 / 966，最后 682。'
+    + '全灭他们才能止住放逐。</div>'
+    + '<div>6. <b>撤离</b>：清剿、档案销毁与入侵势力清除都完成后，回到入口大堂的地表电梯，长按 [F] 升井。</div>'
     + '<h3>■ 设 施 布 局</h3>'
     + '<div class="rule">'
     + '<b>办公区</b>（南）—— 入口大堂 · 地表电梯 · 玻璃房 · 咖啡休息区 · MTF 弹药库 · '
@@ -153,10 +159,10 @@ function renderBrief() {
     + '<h3>■ 关 键 提 示</h3>'
     + '<div>· <b>SCP-173</b> 只有在你注视它的时候才会冻结 —— 而冻结时它才会被子弹击伤。'
     + '但你无法不眨眼。每次眨眼，它都会前进。</div>'
-    + '<div>· <b>SCP-096</b> 平时完全免疫伤害。直视它的脸 0.7 秒会让它暴走，暴走后才能被击伤 —— 但它会以 21 m/s 冲过来。</div>'
-    + '<div>· <b>SCP-966</b> 肉眼不可见，按 [N] 开启头戴装置才能在红外波段看到它。它会持续剥夺你的睡眠。</div>'
-    + '<div>· <b>SCP-096</b> 平时完全免疫伤害。直视它的脸 0.7 秒会让它暴走 —— '
+    + '<div>· <b>SCP-096</b> <b>免疫一切伤害，打不死</b> —— 唯一的收容方式是走到它身边长按 [F] 给它戴上收容头套。'
+    + '平时它很温顺，但直视它的脸 0.7 秒会让它暴走，然后以 21 m/s 冲过来；'
     + '除非你佩戴的是 <b>Project SCRAMBLE</b>：它会把 096 的面部实时打码，让它认不出你。</div>'
+    + '<div>· <b>SCP-966</b> 肉眼不可见，按 [N] 开启头戴装置才能在红外波段看到它。它会持续剥夺你的睡眠。</div>'
     + '<div>· <b>SCP-939</b> 没有眼睛，靠声音捕猎。蹲下慢行可以摆脱它；战术手电的强光能让它僵直。</div>'
     + '<div>· <b>SCP-049</b> 触碰即死，并且会把你队友的尸体变成 SCP-049-2。</div>'
     + '<div>· <b>SCP-106</b> 会穿墙，只有铅能阻挡它。 <b>SCP-682</b> 血量极高，建议用 M249 或等协议上线后再打。</div>'
@@ -199,6 +205,13 @@ function renderLoadout() {
 function renderMissions() {
   const box = el('missionRow');
   if (!box) return;
+  // 首次进入时先抽一次角色（URL 带 ?role= 则固定该角色，不再随机）
+  if (!GAME.roleRolled) {
+    const forced = (typeof forcedRoleFromURL === 'function') ? forcedRoleFromURL() : null;
+    GAME.roleForced = !!forced;
+    GAME.role = forced || (GAME.mission === 'contain096' ? 'mtf' : rollRole());
+    GAME.roleRolled = true;
+  }
   let s = '';
   for (const id of MISSION_ORDER) {
     const m = MISSIONS[id];
@@ -213,19 +226,41 @@ function renderMissions() {
     c.addEventListener('click', () => {
       AudioSys.uiClick();
       GAME.mission = c.dataset.m;
+      // 换行动就重抽角色（收容行动是既定的 MTF 任务；URL 固定角色时也不重抽）
+      if (!GAME.roleForced) {
+        GAME.role = GAME.mission === 'contain096' ? 'mtf' : rollRole();
+      } else if (GAME.mission === 'contain096') {
+        GAME.role = 'mtf';
+      }
+      GAME.roleRolled = true;
       renderMissions();
     });
   });
   const m = currentMission();
   const desc = el('missionDesc');
+  const role = currentRole();
   if (desc) {
     desc.innerHTML = '<b>' + m.name + '</b> · ' + m.sub
       + '<span class="gh">' + m.desc + '</span>'
       + (GAME.mission === 'contain096'
         ? '<span class="gwarn">▸ 提示：SCP-096 处于温顺状态，直视它的脸会让它暴走。'
         + '靠近后长按 [F] 戴收容头套，再把现场 6 张照片逐一划掉。</span>'
-        : '<span class="gwarn">▸ 提示：设施里 9 只收容物全部脱离，建议带足弹药并善用「设施总控室」的收容协议。</span>');
+        : GAME.mission === 'fivek'
+          ? '<span class="gwarn">▸ 本行动里你的<b>身份照常随机分配</b>；抽到 MTF 时，'
+          + '这一局的编制位就是 <b>Nu-22「火箭侠」</b>（任务从"收容"改成"净化"）；'
+          + '也可能抽到 <b>反叛之狐</b> —— 九尾狐麾下拒绝执行净化令的那一支，'
+          + '任务是把 SCP-1440 处决掉并清除 Nu-22（<b>会延迟 60 秒突入</b>）。'
+          + '<br>抽到 Nu-22 时站点全员抵抗；抽到反叛之狐时与保安、科学家同阵营。</span>'
+          // ⚠️ 刻意不在菜单里透露本局抽到了谁 —— 身份在落地那一刻才揭晓（局内显示「你是 XXX」）
+          : '<span class="gwarn">▸ 本局身份在落地瞬间随机分配 —— 抽到谁就是谁，没有重抽。'
+          + '<br>配装只对「MTF Nu-7」生效；抽到其他身份时按各自的规则武装。</span>');
   }
+
+  // 配装区：只对 MTF 生效时灰掉（不透露具体抽到了谁）
+  const dim = GAME.mission !== 'contain096' && role.loadout !== 'custom';
+  const custom = el('loadoutCustom'), right = el('loadoutRight');
+  if (custom) custom.classList.toggle('loadoutDisabled', dim);
+  if (right) right.classList.toggle('loadoutDisabled', dim);
 }
 
 function applyPreset(i) {
@@ -418,6 +453,8 @@ function startDeployment() {
     }
   }
   hide('menuScreen');
+  // 每次部署都重新抽身份 —— 重开对局不用再 F5（收容行动固定 MTF；URL 固定角色时除外）
+  rerollRole();
   startGame();
 }
 

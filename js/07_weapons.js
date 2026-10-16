@@ -252,11 +252,12 @@ function buildGunModel(wpnId, mods, opts) {
   let muzzleZ = -0.4, sightY = 0.1;
   const A = {};   // 锚点
 
-  if (wpnId === 'hk416' || wpnId === 'mp5' || wpnId === 'm249') {
+  if (wpnId === 'hk416' || wpnId === 'mp5' || wpnId === 'm249' || wpnId === 'ump45' || wpnId === 'mp7') {
     const isMG = wpnId === 'm249';
-    const isSMG = wpnId === 'mp5';
-    const recLen = isMG ? 0.40 : isSMG ? 0.22 : 0.28;
-    const hgLen = isMG ? 0.34 : isSMG ? 0.16 : 0.26;
+    const isSMG = wpnId === 'mp5' || wpnId === 'mp7';    // 圆管护木的小家伙
+    const isUMP = wpnId === 'ump45';                     // 方护木、机匣略长
+    const recLen = isMG ? 0.40 : isUMP ? 0.30 : isSMG ? 0.22 : 0.28;
+    const hgLen = isMG ? 0.34 : isUMP ? 0.20 : isSMG ? 0.16 : 0.26;
     // 机匣
     bx(GUN_MAT.body, 0.062, 0.10, recLen, 0, 0, 0.02, g);
     bx(GUN_MAT.bodyLight, 0.064, 0.03, recLen * 0.85, 0, 0.062, 0.02, g);
@@ -273,11 +274,11 @@ function buildGunModel(wpnId, mods, opts) {
       partRail(g, hgLen * 0.9, 0, 0.038, hgZ);
     }
     // 枪管
-    const barrelLen = isMG ? 0.42 : isSMG ? 0.16 : 0.34;
+    const barrelLen = isMG ? 0.42 : isUMP ? 0.22 : isSMG ? 0.16 : 0.34;
     const barrelZ = hgZ - hgLen / 2;
     cyl(GUN_MAT.metal, isMG ? 0.016 : 0.011, isMG ? 0.016 : 0.011, barrelLen, 0, 0, barrelZ - barrelLen / 2, g, 'z');
-    // 导气管
-    if (!isSMG) cyl(GUN_MAT.dark, 0.007, 0.007, barrelLen * 0.7, 0, 0.026, barrelZ - barrelLen * 0.35, g, 'z');
+    // 导气管（UMP 与 MP5 都没有）
+    if (!isSMG && !isUMP) cyl(GUN_MAT.dark, 0.007, 0.007, barrelLen * 0.7, 0, 0.026, barrelZ - barrelLen * 0.35, g, 'z');
     muzzleZ = partMuzzle(g, 0, 0, barrelZ - barrelLen + 0.02, M.muzzle);
     // 握把
     A.grip = V3(0, -0.1, 0.10);
@@ -305,15 +306,17 @@ function buildGunModel(wpnId, mods, opts) {
       }
     }
     A.length = Math.abs(muzzleZ) + 0.3;
-  } else if (wpnId === 'glock18') {
+  } else if (wpnId === 'glock18' || wpnId === 'glock17') {
+    // Glock-17 的套筒/枪管比 18 长一点，拿在手里能分辨
+    const long = wpnId === 'glock17' ? 0.028 : 0;
     // 套筒
-    bx(GUN_MAT.body, 0.045, 0.055, 0.21, 0, 0.02, -0.03, g);
-    bx(GUN_MAT.metal, 0.046, 0.012, 0.21, 0, 0.05, -0.03, g);
+    bx(GUN_MAT.body, 0.045, 0.055, 0.21 + long, 0, 0.02, -0.03 - long / 2, g);
+    bx(GUN_MAT.metal, 0.046, 0.012, 0.21 + long, 0, 0.05, -0.03 - long / 2, g);
     // 套筒锯齿
     for (let i = 0; i < 5; i++) bx(GUN_MAT.dark, 0.048, 0.03, 0.006, 0, 0.018, 0.03 + i * 0.014, g);
     // 枪管口
-    cyl(GUN_MAT.metal, 0.011, 0.011, 0.03, 0, 0.02, -0.14, g, 'z');
-    muzzleZ = partMuzzle(g, 0, 0.02, -0.135, M.muzzle);
+    cyl(GUN_MAT.metal, 0.011, 0.011, 0.03, 0, 0.02, -0.14 - long, g, 'z');
+    muzzleZ = partMuzzle(g, 0, 0.02, -0.135 - long, M.muzzle);
     // 握把
     const grip = bx(GUN_MAT.poly, 0.042, 0.16, 0.055, 0, -0.09, 0.055, g);
     grip.rotation.x = 0.26;
@@ -350,7 +353,7 @@ function buildGunModel(wpnId, mods, opts) {
   const sc = (opts && opts.worldScale) ? 1.0 : VM_SCALE;
   g.scale.setScalar(sc);
   // 瞄具基准高度（这是"世界偏移"，需同步缩放；muzzleZ 交给 localToWorld，不能缩放）
-  if (wpnId === 'glock18') sightY = opticSightY(0.048, M.optic || 'iron');
+  if (wpnId === 'glock18' || wpnId === 'glock17') sightY = opticSightY(0.048, M.optic || 'iron');
   else if (wpnId === 'spas12') sightY = opticSightY(0.062, M.optic || 'iron');
   else sightY = opticSightY(0.082, M.optic || 'iron');
   sightY *= sc;

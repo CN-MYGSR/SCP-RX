@@ -747,13 +747,15 @@ function makeElevator(x, z, zone) {
 
 /* ---------- 物资散布 ---------- */
 const PICK_POOLS = {
-  armory: ['ammo_rifle', 'ammo_rifle', 'ammo_smg', 'ammo_smg', 'armor_plate', 'armor_plate', 'bandage'],
-  vault: ['ammo_rifle', 'ammo_rifle', 'ammo_smg', 'armor_plate', 'bandage', 'medkit'],
-  store: ['ammo_rifle', 'ammo_smg', 'armor_plate', 'bandage', 'bandage', 'battery'],
+  // 军械库 / 金库 / 仓库里散落着补给武器 —— 没枪的阵营就指望这些
+  armory: ['ammo_rifle', 'ammo_rifle', 'ammo_smg', 'ammo_smg', 'armor_plate', 'armor_plate', 'bandage', 'wpn_ump45', 'wpn_mp7', 'ammo_45', 'ammo_46'],
+  vault: ['ammo_rifle', 'ammo_rifle', 'ammo_smg', 'armor_plate', 'bandage', 'medkit', 'wpn_mp7', 'wpn_glock17', 'ammo_46'],
+  store: ['ammo_rifle', 'ammo_smg', 'armor_plate', 'bandage', 'bandage', 'battery', 'wpn_ump45', 'wpn_glock17', 'ammo_45'],
   lab: ['battery', 'battery', 'medkit', 'medkit', 'bandage'],
   coffee: ['medkit', 'medkit', 'bandage', 'bandage'],
   med: ['medkit', 'medkit', 'bandage', 'bandage', 'armor_plate'],
-  default: ['ammo_rifle', 'ammo_rifle', 'ammo_smg', 'ammo_smg', 'medkit', 'bandage', 'bandage', 'armor_plate', 'battery'],
+  default: ['ammo_rifle', 'ammo_rifle', 'ammo_smg', 'ammo_smg', 'medkit', 'bandage', 'bandage', 'armor_plate', 'battery',
+    'wpn_ump45', 'wpn_mp7', 'wpn_glock17', 'ammo_45', 'ammo_46'],
 };
 function scatterPickups() {
   const spots = [];
@@ -947,11 +949,16 @@ function spawnPickup(type, x, z) {
   } else if (def.kind === 'battery') {
     mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.24, 8),
       new THREE.MeshStandardMaterial({ color: def.color, roughness: 0.4, emissive: 0x0a4a30 }));
+  } else if (def.kind === 'weapon') {
+    // 补给武器直接把枪模摆出来 —— 远远就能认出捡到的是什么
+    const gm = buildGunModel(def.wpn, {}, { worldScale: true });
+    mesh = gm.group;
+    mesh.scale.setScalar(1.12);
   } else {
     mesh = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.4, 0.14),
       new THREE.MeshStandardMaterial({ color: def.color, roughness: 0.5, metalness: 0.5, emissive: 0x14202a }));
   }
-  mesh.position.y = 0.3;
+  mesh.position.y = def.kind === 'weapon' ? 0.55 : 0.3;
   g.add(mesh);
   // 微光标记
   const halo = new THREE.Mesh(new THREE.SphereGeometry(0.34, 8, 6),

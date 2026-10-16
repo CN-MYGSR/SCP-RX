@@ -85,6 +85,16 @@ const VM = {
     this.spot.intensity = fl ? 2.6 : 0;
   },
 
+  /* 空手角色（研究员 / D 级人员）：把枪模摘掉，手上什么也没有 */
+  unequip() {
+    if (this.gun) { this.root.remove(this.gun); this.gun = null; }
+    this.wpnId = null; this.stats = null; this.model = null;
+    this.adsBlend = 0; this.adsTarget = 0;
+    this.reloading = false; this.reloadT = 0;
+    this.flashT = 0; this.recoilP = this.recoilY = this.kick = 0;
+    this.spot.visible = false; this.spot.intensity = 0;
+  },
+
   toggleLight() {
     if (!this.stats || !this.stats.hasFlashlight) { toast('本武器未安装战术手电', 1600, 'warn'); return false; }
     this.flashLightOn = !this.flashLightOn;

@@ -64,6 +64,33 @@ const GAME = {
   contained: {},        // key -> true
   // 收容行动进度
   saw096: false,
+  // 开局随机角色（mtf / guard / scientist / classd / o79）
+  role: 'mtf',
+  roleRolled: false,
+  // MTF 火力组是否已进场（开局 1 分钟后）
+  mtfDeployed: false,
+  // MTF 增援倒计时 / 队员编号（增援从 Nu-7-5 开始）
+  mtfReinforceT: 0, allySeq: 4,
+  // 是否已经用掉第二身份（撤离后重新部署）
+  secondLife: false,
+  // 本局是否重生过 / 重生次数（复活是**无限次**的，这两个只用于记录与结算显示）
+  rebirthUsed: false,
+  rebirthCount: 0,
+  // 重新部署后的撤离冷却（秒），防止刚落地又被电梯吸走
+  extractCd: 0,
+  // 重新部署后的无敌时间（秒）—— 防止刚落地就被守在出生点附近的收容物秒掉
+  spawnProtectT: 0,
+  // 是否已经播报过"设施人员开始自行撤离"
+  selfEvacTold: false,
+  // 净化行动（市区）：感染扩散状态
+  cityState: { spreadT: 18, spawned: 0 },
+  // 反叛之狐的延迟部署：O5 的净化令先到，反叛之狐后到
+  staging: { active: false, t: 0, total: 60 },
+  // 护送幸存人员换来的伤害加成（乘算、可叠加）
+  bonusAnomaly: 1,      // 对异常伤害倍率
+  bonusHostile: 1,      // 对敌对势力伤害倍率
+  rescued: { scientist: 0, guard: 0 },   // 已护送撤离的人数
+  classdEscaped: 0,     // 逃出设施的 D 级人员数（会让 CI 提前突入）
   // 报警等级
   alarmLevel: 0,        // 0 静默 / 1 警戒 / 2 紧急
   // 统计
